@@ -10,9 +10,15 @@ This file is installed next to `LICENSE` in the install folder. It is not legal 
 
 ## Written offer of corresponding source (GPL components)
 
-For every GPL component below (mpv, ffmpeg/ffprobe, and the x264/x265 libraries inside PyAV), the corresponding source
-code is attached to the matching GitHub Release of https://github.com/life-hack-lab/oh-streamer and stays available for
-at least three years after that release. You can also ask for it through https://github.com/life-hack-lab/oh-streamer/issues.
+For the GPL programs bundled in the installer (mpv and ffmpeg/ffprobe, section (a)), the corresponding source code
+(upstream source and build recipe) is attached to the matching GitHub Release of https://github.com/life-hack-lab/oh-streamer
+and stays available for at least three years after that release. You can also ask for it through
+https://github.com/life-hack-lab/oh-streamer/issues.
+
+Packages installed at first run (section (b)) are downloaded by the app directly from PyPI and download.pytorch.org;
+this project does not redistribute them. Their source is available from each project, for example PyAV and the FFmpeg
+build inside its wheels (including libx264 and libx265): https://github.com/PyAV-Org/PyAV and
+https://github.com/PyAV-Org/pyav-ffmpeg.
 
 ## (a) Bundled in the installer
 
