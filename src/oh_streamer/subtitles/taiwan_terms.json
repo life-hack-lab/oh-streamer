@@ -1,0 +1,8 @@
+[
+  {"src":"結賬","dst":"結帳","match":"contains"},
+  {"src":"酒店","dst":"飯店","match":"contains","exceptions":["酒店小姐","酒店妹","酒店業","酒店工作"]},
+  {"src":"合同","dst":"合約","match":"contains","exceptions":["合同法","合同制"]},
+  {"src":"視頻","dst":"影片","match":"contains"},
+  {"src":"賓館","dst":"旅館","match":"contains"},
+  {"src":"OK","dst":"好","match":"word"}
+]

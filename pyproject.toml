@@ -1,0 +1,164 @@
+[build-system]
+# >=77: PEP 639 SPDX `license` string + `license-files`.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oh-streamer"
+version = "0.1.0"
+description = "Desktop video player and processing queue"
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+authors = [{name = "life-hack-lab"}]
+requires-python = "==3.13.*"
+# Base environment: no torch. GPU builds come from the nvidia / cpu extras.
+dependencies = [
+    "lada",
+    "av==16.1.0",
+    "psutil",
+    "yt-dlp",
+    "pywebview",
+    "pystray",
+    "Pillow==12.3.0",
+    "pyatv==0.18.0",
+    "playwright==1.63.0",
+    'pyobjc-framework-Cocoa; sys_platform == "darwin"',
+    'nvidia-ml-py==13.615.71; sys_platform == "win32"',
+    'keyring; sys_platform != "win32"',
+]
+
+[project.optional-dependencies]
+nvidia = [
+    "torch==2.8.0",
+    "torchvision==0.23.0",
+    "torchaudio==2.8.0",
+]
+cpu = [
+    "torch==2.9.1",
+    "torchvision==0.24.1",
+    "torchaudio==2.9.1",
+]
+# torchaudio lives in the GPU extras so it always matches torch.
+subtitles = [
+    "transformers==4.57.6",
+    "accelerate==1.15.0",
+    "silero-vad==6.2.3",
+    "opencc-python-reimplemented==0.1.7",
+    "huggingface-hub==0.36.2",
+    "tokenizers==0.22.2",
+    "safetensors==0.8.0",
+    "onnxruntime==1.31.0",
+    "hf-xet==1.7.0",
+    "protobuf==7.36.2",
+    "flatbuffers==25.12.19",
+    "coloredlogs==15.0.1",
+    "humanfriendly==10.0",
+]
+
+[tool.uv]
+default-groups = []
+# Pins from the tested dev venvs (lada/.venv, subtitle_poc/.venv), 2026-10-24;
+# certifi, fsspec, idna, Pillow, pygments, requests, setuptools, urllib3 bumped for security fixes 2026-10-26.
+constraint-dependencies = [
+    "aiohttp==3.14.4",
+    "certifi==2026.10.23",
+    "charset-normalizer==3.4.4",
+    "contourpy==1.3.3",
+    "filelock==3.20.3",
+    "fonttools==4.61.1",
+    "fsspec==2026.9.0",
+    "idna==3.20",
+    "kiwisolver==1.4.9",
+    "markdown-it-py==4.0.0",
+    "markupsafe==3.0.3",
+    "matplotlib==3.10.8",
+    "multidict==6.9.1",
+    "networkx==3.6.1",
+    "packaging==25.0",
+    "platformdirs==4.5.1",
+    "polars==1.37.1",
+    "polars-runtime-32==1.37.1",
+    "psutil==7.2.1",
+    "pycparser==3.0",
+    "pydantic==2.13.5",
+    "pydantic-core==2.46.5",
+    "pygments==2.21.0",
+    "pyparsing==3.3.1",
+    "python-dateutil==2.9.0.post0",
+    "regex==2026.1.15",
+    "requests==2.34.2",
+    "rich==14.2.0",
+    "scipy==1.17.0",
+    "setuptools==84.2.1",
+    "tqdm==4.67.1",
+    "typing-extensions==4.15.0",
+    "ultralytics-thop==2.0.18",
+    "urllib3==2.8.0",
+    "wcwidth==0.2.14",
+    "yt-dlp==2026.8.19",
+]
+environments = ["sys_platform == 'win32' and platform_machine == 'AMD64'"]
+conflicts = [
+    [{ extra = "cpu" }, { extra = "nvidia" }],
+]
+
+[tool.uv.sources]
+lada = { path = "packaging/wheels/lada-0.11.1.dev0+20cb34a-py3-none-any.whl" }
+torch = [
+    { index = "pytorch-cu128", extra = "nvidia" },
+    { index = "pytorch-cpu", extra = "cpu" },
+]
+torchvision = [
+    { index = "pytorch-cu128", extra = "nvidia" },
+    { index = "pytorch-cpu", extra = "cpu" },
+]
+torchaudio = [
+    { index = "pytorch-cu128", extra = "nvidia" },
+    { index = "pytorch-cpu", extra = "cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[project.urls]
+Homepage = "https://github.com/life-hack-lab/oh-streamer"
+Source = "https://github.com/life-hack-lab/oh-streamer"
+Issues = "https://github.com/life-hack-lab/oh-streamer/issues"
+
+[project.scripts]
+oh-streamer = "oh_streamer.__main__:main"
+oh-streamer-queue = "oh_streamer.__main__:queue_main"
+oh-streamer-worker = "oh_streamer.__main__:worker_main"
+oh-streamer-resolve-browser = "oh_streamer.__main__:resolver_main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+oh_streamer = [
+    "subtitles/blacklist.json",
+    "subtitles/quality.json",
+    "subtitles/hallucinations.json",
+    "subtitles/glossary_default.json",
+    "subtitles/taiwan_terms.json",
+    "resources/*.lua",
+    "resources/*.json",
+    "resources/queue_ui/*.html",
+    "resources/queue_ui/*.css",
+    "resources/queue_ui/*.js",
+    "resources/icons/*.ico",
+    "resources/icons/*.icns",
+    "resources/icons/*.png",
+]

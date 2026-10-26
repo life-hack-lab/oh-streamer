@@ -1,0 +1,8 @@
+*.command text eol=lf
+*.cmd text eol=crlf
+packaging/*.lock text eol=lf
+uv.lock text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.iss text eol=crlf
+*.isl text eol=crlf

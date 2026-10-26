@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="zh-TW" data-skin="pixel">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Streamer</title>
+<link rel="stylesheet" href="app.css" id="skinCss">
+<style>
+/* set by applySkin() while the skin stylesheet is being swapped, so the drawer & co. don't animate across the screen */
+html.skin-switching *, html.skin-switching *::before, html.skin-switching *::after { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
+/* Shared by both queue skins because the active skin stylesheet is swapped at runtime. */
+.modal-choices { display: grid; gap: 10px; margin: 0 0 18px; }
+.modal-choice { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line, var(--border)); cursor: pointer; }
+.modal-choice input { margin: 0; accent-color: var(--hot, var(--accent)); }
+.modal-choice:focus-within { outline: 2px solid var(--hot, var(--accent)); outline-offset: 2px; }
+.reprocess-card { width: min(650px, 100%); max-height: min(90vh, 900px); overflow: auto; overscroll-behavior: contain; }
+.reprocess-card h3 { margin-bottom: 10px; }
+.reprocess-source, .reprocess-state-note, .reprocess-lossy, .reprocess-error {
+  margin: 0 0 8px !important; padding: 8px 10px; border: 1px solid var(--line, var(--border));
+  background: var(--surface-2, var(--surface)); font-size: 13px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere;
+}
+.reprocess-card .reprocess-state-note { color: var(--text-3); background: transparent; border-color: transparent; padding: 0 2px; }
+.reprocess-card .reprocess-lossy { color: var(--hot, var(--accent)); border-color: color-mix(in srgb, var(--hot, var(--accent)) 40%, var(--line, var(--border))); }
+.reprocess-card .reprocess-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, var(--line, var(--border))); }
+.reprocess-fields { min-width: 0; margin: 4px 0 16px; padding: 0; border: 0; }
+.reprocess-fields:disabled { opacity: .65; }
+.rp-row {
+  display: grid; grid-template-columns: minmax(115px, 150px) minmax(0, 1fr); align-items: center;
+  gap: 7px 12px; padding: 9px 0; border-bottom: 1px solid var(--line, var(--border));
+}
+.rp-row > label, .rp-label { color: var(--text); font-size: 13px; font-weight: 700; }
+.rp-row > select, .rp-row > input[type="text"] {
+  width: 100%; min-width: 0; min-height: 36px; padding: 6px 9px;
+  color: var(--text); background: var(--surface-2, var(--surface)); border: 1px solid var(--border-strong, var(--border)); font: inherit;
+}
+.rp-row > select:focus-visible, .rp-row > input:focus-visible { outline: 2px solid var(--hot, var(--accent)); outline-offset: 2px; }
+.rp-row > select:disabled { opacity: .6; cursor: default; }
+.rp-row .rp-seg { min-width: 0; box-shadow: none; }
+.rp-row .rp-seg span { padding: 6px 7px; font-size: 12px; }
+.rp-row .rp-check { grid-column: 1 / -1; display: inline-flex; align-items: center; gap: 9px; min-height: 30px; cursor: pointer; }
+.rp-check input { width: 17px; height: 17px; margin: 0; accent-color: var(--hot, var(--accent)); flex: none; }
+.reprocess-card .rp-help { grid-column: 2; margin: -3px 0 0; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+.reprocess-compare { padding-left: 10px; border-left: 2px solid var(--line, var(--border)); }
+.reprocess-compare .rp-row:last-child { border-bottom: 0; }
+.reprocess-actions { position: sticky; bottom: -18px; margin: 0 -22px -18px; padding: 12px 22px 18px; background: var(--panel, var(--surface)); border-top: 1px solid var(--line, var(--border)); }
+@media (max-width: 560px) {
+  .reprocess-card { padding: 16px; max-height: 94vh; }
+  .rp-row { grid-template-columns: 1fr; }
+  .reprocess-card .rp-help { grid-column: 1; }
+  .reprocess-actions { bottom: -16px; margin: 0 -16px -16px; padding: 10px 16px 16px; }
+}
+/* Subtitle subpages share styling across both skins. */
+#spane-subtitles { --sub-line: var(--line, var(--border)); }
+#spane-subtitles [hidden] { display: none !important; }
+#spane-subtitles .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.subtitle-env { margin: 12px 0; padding: 9px 11px; background: var(--surface-2, var(--surface)); color: var(--text-3); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.subtitle-env.unavailable { border-left: 3px solid var(--hot, var(--accent)); }
+.subtitle-view-title { margin: 14px 0 8px; font-size: 16px; line-height: 1.5; }
+#subtitleMainView .srow { align-items: flex-start; }
+#subtitleMainView .srow .c.wide { flex: 1 1 100%; }
+#spane-subtitles select, #spane-subtitles input[type="text"], #spane-subtitles input[type="password"], #spane-subtitles input[type="url"] {
+  width: 100%; min-width: 0; min-height: 38px; padding: 8px 9px; color: var(--text);
+  background: var(--surface-2, var(--surface)); border: 1px solid var(--border-strong, var(--border)); font: inherit; font-size: 13px;
+}
+#spane-subtitles select { text-overflow: ellipsis; }
+#spane-subtitles input:focus-visible, #spane-subtitles select:focus-visible, #spane-subtitles summary:focus-visible { outline: 2px solid var(--hot, var(--accent)); outline-offset: 2px; }
+.subtitle-nav-actions, .subtitle-subview-head, .subtitle-row-head, .subtitle-row-actions, .subtitle-form-actions, .subtitle-model-card-head, .subtitle-comparison-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.subtitle-nav-actions { padding: 16px 0; }
+.subtitle-subview-head { padding: 12px 0; border-bottom: 1px solid var(--sub-line); }
+.subtitle-subview-head .subtitle-view-title { margin: 0; }
+.subtitle-options { min-width: 0; border: 0; padding: 15px 0; margin: 0; }
+.subtitle-options legend { padding-top: 16px; font-size: 14px; font-weight: 700; }
+#spane-subtitles .snote { border: 0; padding: 5px 0 10px; }
+.subtitle-option-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; font-size: 13px; }
+.subtitle-option-row small { display: block; margin-top: 4px; color: var(--text-3); font-size: 12px; line-height: 1.5; }
+.subtitle-option-row input[type="checkbox"] { flex: none; width: 18px; height: 18px; accent-color: var(--hot, var(--accent)); }
+.subtitle-comparison { padding: 15px 0; border-top: 1px solid var(--sub-line); }
+.subtitle-comparison-head { flex-wrap: nowrap; justify-content: space-between; align-items: flex-start; }
+.subtitle-comparison-head > div { min-width: 0; }
+.subtitle-comparison-head h3 { margin: 0 0 5px; font-size: 14px; }
+.subtitle-comparison-head .hint { margin: 0; font-size: 12px; line-height: 1.55; color: var(--text-3); }
+.subtitle-comparison-head .switch { flex: none; margin-top: 2px; }
+.subtitle-comparison-rows { display: grid; gap: 12px; margin: 15px 0 12px; }
+.subtitle-comparison-row { min-width: 0; padding: 12px; border: 1px solid var(--border-strong, var(--border)); background: var(--surface-2, var(--surface)); }
+.subtitle-row-head { justify-content: space-between; margin-bottom: 12px; font-size: 13px; }
+.subtitle-row-actions { gap: 5px; }
+.subtitle-row-fields, .subtitle-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.subtitle-row-fields > label:first-child { grid-column: 1 / -1; }
+.subtitle-row-fields label, .subtitle-form-grid label { display: grid; align-content: start; gap: 6px; min-width: 0; color: var(--text-2, var(--text)); font-size: 12px; line-height: 1.5; }
+.subtitle-row-more { margin-top: 12px; border-top: 1px solid var(--sub-line); padding-top: 8px; font-size: 12px; }
+.subtitle-row-more summary, .subtitle-cloud-disclosure summary { cursor: pointer; padding: 4px 0; }
+.subtitle-model-tabs { display: flex; gap: 6px; margin: 15px 0 12px; }
+.subtitle-model-tabs button { flex: 1; padding: 9px; font: inherit; font-size: 13px; color: var(--text-3); background: var(--surface-2, var(--surface)); border: 1px solid var(--border-strong, var(--border)); cursor: pointer; }
+.subtitle-model-tabs button[aria-selected="true"] { color: var(--hot, var(--accent)); border-color: var(--hot, var(--accent)); font-weight: 700; }
+.subtitle-model-tabs button:focus-visible { outline: 2px solid var(--hot, var(--accent)); outline-offset: 2px; }
+.subtitle-model-list { display: grid; gap: 8px; }
+.subtitle-model-card { padding: 11px 12px; border: 1px solid var(--sub-line); overflow-wrap: anywhere; }
+.subtitle-model-card-head { justify-content: space-between; align-items: baseline; font-size: 13px; }
+.subtitle-model-status { font-size: 11px; color: var(--text-3); line-height: 1.5; }
+.subtitle-model-card.missing .subtitle-model-status { color: var(--hot, var(--accent)); }
+.subtitle-model-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 6px 0; font-size: 11px; color: var(--text-3); }
+.subtitle-model-auth { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border: 1px solid var(--sub-line); background: var(--surface-2, var(--surface)); color: var(--text-2, var(--text)); font-size: 11px; }
+.subtitle-model-auth.warn { border-color: var(--hot, var(--accent)); color: var(--hot, var(--accent)); }
+.subtitle-card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.subtitle-key-editor { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--sub-line); display: grid; gap: 8px; }
+.subtitle-key-wrap { display: flex; align-items: stretch; gap: 6px; }
+.subtitle-key-wrap input { flex: 1 1 auto; }
+.subtitle-key-wrap button { flex: none; white-space: nowrap; }
+.subtitle-pair-row { margin-top: 10px; padding: 8px 10px; border: 1px solid var(--sub-line); background: var(--surface-2, var(--surface)); }
+.subtitle-model-form { border-top: 1px solid var(--sub-line); margin-top: 20px; padding: 16px 0; }
+.subtitle-model-form h4 { margin: 0 0 4px; font-size: 14px; }
+.subtitle-form-grid .subtitle-local-field, .subtitle-form-grid .subtitle-cloud-field, .subtitle-form-grid .subtitle-audio-field { grid-column: 1 / -1; }
+.subtitle-cloud-disclosure { margin-top: 12px; padding: 8px 10px; background: var(--surface-2, var(--surface)); font-size: 12px; line-height: 1.6; }
+.subtitle-cloud-disclosure p { margin: 5px 0; }
+.subtitle-fallback { padding: 15px 0; border-top: 1px solid var(--sub-line); }
+.subtitle-fallback-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.subtitle-fallback-head h3 { margin: 0 0 5px; font-size: 14px; }
+.subtitle-fallback-head .hint { margin: 0; font-size: 12px; line-height: 1.55; color: var(--text-3); }
+.subtitle-fallback-list { display: grid; gap: 8px; margin: 10px 0; }
+.subtitle-fallback-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid var(--border-strong, var(--border)); background: var(--surface-2, var(--surface)); font-size: 13px; }
+.subtitle-fallback-meta { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; flex-wrap: wrap; }
+.subtitle-fallback-order { font-weight: 700; color: var(--text-3); min-width: 18px; }
+.subtitle-fallback-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.subtitle-fallback-add-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.subtitle-fallback-add-row select { flex: 1; }
+.subtitle-fallback-add-row button { flex: none; white-space: nowrap; }
+.subtitle-connection-list { display: grid; gap: 10px; margin: 12px 0; }
+.subtitle-connection-card { padding: 12px; border: 1px solid var(--sub-line); background: var(--surface-2, var(--surface)); }
+.subtitle-connection-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.subtitle-connection-body { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+.subtitle-connection-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.subtitle-form-actions { margin-top: 15px; font-size: 12px; line-height: 1.6; }
+.subtitle-mode-label { display: block; margin-bottom: 8px; font-size: 13px; }
+.subtitle-service-form { display: grid; gap: 9px; min-width: 0; margin: 12px 0; }
+.subtitle-service-form > label { font-size: 12px; color: var(--text-2, var(--text)); }
+.subtitle-service-form > button { justify-self: start; max-width: 100%; white-space: normal; }
+.subtitle-pool-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.subtitle-pool-list { border: 1px solid var(--sub-line); margin: 12px 0; }
+.subtitle-pool-item + .subtitle-pool-item { border-top: 1px solid var(--sub-line); }
+.subtitle-pool-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 12px; }
+#spane-subtitles .subtitle-pool-row input[type="checkbox"], #spane-subtitles .subtitle-pool-auto input { width: 16px; height: 16px; margin: 0; accent-color: var(--hot, var(--accent)); }
+.subtitle-pool-name { min-width: 0; overflow-wrap: anywhere; }
+.subtitle-pool-name small { display: block; color: var(--text-3); margin-top: 3px; }
+.subtitle-pool-state { font-size: 12px; color: var(--text-2); white-space: pre-line; text-align: right; }
+.subtitle-pool-auto { display: flex; align-items: center; gap: 9px; margin: 14px 0; }
+.subtitle-service-form.subtitle-pool-editor { margin: 0; padding: 14px; background: var(--surface-2, var(--surface)); border-top: 1px solid var(--sub-line); }
+.subtitle-pool-editor h5 { margin: 0 0 4px; font: inherit; }
+.subtitle-pool-fields { display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 12px; }
+.subtitle-pool-fields label { display: grid; gap: 6px; min-width: 0; color: var(--text-2); font-size: 12px; }
+.subtitle-pool-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.subtitle-pool-actions > span { flex: 1; }
+@media (max-width: 480px) {
+  .subtitle-pool-row { grid-template-columns: 18px minmax(0, 1fr) auto; gap: 9px; }
+  .subtitle-pool-state { grid-column: 2; grid-row: 2; text-align: left; }
+  .subtitle-pool-row > button { grid-column: 3; grid-row: 1 / 3; }
+  .subtitle-pool-fields { grid-template-columns: minmax(0, 1fr); }
+}
+.subtitle-service-status { white-space: pre-line; overflow-wrap: anywhere; font-size: 12px; line-height: 1.7; }
+#subtitleProfileStatus, #subtitleComboFallback, #subtitleCloudPlan { overflow-wrap: anywhere; }
+#subtitleMode { width: 100%; }
+#subtitleModelFormStatus { overflow-wrap: anywhere; color: var(--text-3); }
+@media (max-width: 620px) {
+  .subtitle-row-fields, .subtitle-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .subtitle-row-actions { width: 100%; }
+  .subtitle-model-card-head { display: grid; gap: 4px; }
+  .subtitle-nav-actions { align-items: stretch; }
+  .subtitle-nav-actions > button { flex: 1 1 100%; }
+}
+/* Cloud usage panel (statistics only); colours come from the skin variables. */
+.usage-sec { margin: 12px 0; border-top: 1px solid var(--sub-line); padding-top: 8px; }
+.usage-sec > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; padding: 4px 0; }
+.usage-sec > summary:focus-visible, .usage-sec button:focus-visible, .usage-toggle input:focus-visible { outline: 2px solid var(--hot, var(--accent)); outline-offset: 2px; }
+.usage-chip { font-size: 11px; font-weight: 600; padding: 1px 8px; border: 1px solid currentColor; border-radius: 999px; }
+.usage-chip.low { color: var(--warn); } .usage-chip.critical { color: var(--danger); }
+.usage-muted { color: var(--text-3); font-size: 12px; margin: 6px 0; }
+.usage-model { padding: 8px 0; border-bottom: 1px solid var(--sub-line); }
+.usage-mhead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.usage-modelname { overflow-wrap: anywhere; }
+.usage-kind { color: var(--text-3); font-size: 11px; }
+.usage-state { margin-left: auto; font-size: 11px; color: var(--ok); }
+.usage-state.low { color: var(--warn); } .usage-state.critical { color: var(--danger); } .usage-state.unknown { color: var(--text-3); }
+.usage-metric { display: grid; grid-template-columns: 84px minmax(60px, 1fr) minmax(0, 2fr); align-items: center; gap: 8px; font-size: 12px; margin: 3px 0; }
+.usage-mname { color: var(--text-2); }
+.usage-mtext { color: var(--text-3); overflow-wrap: anywhere; }
+.usage-bar { display: block; height: 6px; background: var(--track, var(--sub-line)); border-radius: 3px; overflow: hidden; }
+.usage-fill { display: block; height: 100%; background: var(--ok); }
+.usage-fill.low { background: var(--warn); } .usage-fill.critical { background: var(--danger); } .usage-fill.unknown { background: var(--text-3); }
+.usage-controls { display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; flex-wrap: wrap; }
+.usage-controls .btn[aria-pressed="true"] { background: var(--accent-soft, transparent); border-color: var(--accent); }
+.usage-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-2); margin-left: auto; }
+.usage-svg { width: 100%; height: auto; display: block; }
+.usage-axis { stroke: var(--chart-grid, var(--sub-line)); stroke-width: 1; }
+.usage-tokbar { fill: var(--chart-1, var(--accent)); }
+.usage-audioline { stroke: var(--chart-2, var(--warn)); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.usage-tick { fill: var(--chart-tick, var(--text-3)); font-size: 10px; }
+.usage-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: var(--text-3); margin: 4px 0 0; }
+.usage-key::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; }
+.usage-key.tok::before { background: var(--chart-1, var(--accent)); } .usage-key.aud::before { background: var(--chart-2, var(--warn)); height: 3px; vertical-align: 3px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="titlebar">
+      <div class="brand">
+        <span class="brand-mark modern-only" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h11M4 17h7"/><path d="M18 10l4 2.5-4 2.5z" class="fill"/></svg>
+        </span>
+        <h1 class="modern-only">Streamer</h1>
+        <div class="px-brand px-only" aria-hidden="true">
+          <div class="px-brand-row">
+            <canvas class="px-logo" id="pxLogo" width="164" height="50" title="Streamer"></canvas>
+            <span class="px-sub">STREAMER</span>
+          </div>
+          <div class="px-rgb"><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="btnAddFiles" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v5M9.5 12.5h5"/></svg>
+          <span class="lbl">加入檔案</span>
+        </button>
+        <button class="btn" id="btnPauseAll" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" data-role="icon"><path d="M8 5v14M16 5v14"/></svg>
+          <span class="lbl">全部暫停</span>
+        </button>
+        <button class="btn gpu-toggle" id="btnGpu" type="button" aria-expanded="false" aria-controls="gpuPanel" title="顯示 GPU 用量">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11v2M11 10v3M15 12v1M6 17v2M18 17v2"/></svg>
+          <span class="lbl">GPU</span>
+          <span class="gpu-mini" id="gpuMini" hidden></span>
+        </button>
+        <button class="btn gpu-toggle" id="btnPerf" type="button" aria-expanded="false" aria-controls="perfPanel" title="電腦效能檢測" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.500 17.500a8.500 8.500 0 1 1 15 0"/><path d="M12 14l3.500-5"/><circle cx="12" cy="14.500" r="1.200"/><path d="M12 7V5.800M6.800 9.100l-.9-.9M17.200 9.100l.9-.9"/></svg>
+          <span class="lbl">效能檢測</span>
+        </button>
+        <button class="btn icon-only" id="btnSettings" type="button" title="設定" aria-label="設定">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <form class="addbox" id="addForm" autocomplete="off">
+      <svg class="addbox-ico modern-only" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.700l1-1"/></svg>
+      <span class="addbox-prompt px-only" aria-hidden="true">&rsaquo;</span>
+      <textarea id="addInput" rows="1" spellcheck="false" placeholder="貼上網址、cURL 或本機檔案路徑（可多行）；按 Enter 解析" aria-label="網址、cURL 或本機檔案路徑"></textarea>
+      <button class="btn primary resolve" type="submit" id="btnResolve">解析<span class="kbd px-only" aria-hidden="true">↵</span></button>
+    </form>
+    <p class="entry-status" id="entryStatus" role="status" aria-live="polite" hidden></p>
+    <p class="entry-status" id="sourceStatus" role="status" aria-live="polite" hidden></p>
+  </header>
+
+  <main class="content">
+    <section class="intake" id="intake" aria-label="影片資訊與處理設定" hidden></section>
+
+    <div class="notice info perf-banner" id="perfBanner" role="status" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.500 17.500a8.500 8.500 0 1 1 15 0"/><path d="M12 14l3.500-5"/><circle cx="12" cy="14.500" r="1.200"/></svg>
+      <span class="perf-banner-text">第一次使用？先跑一次效能檢測，了解這台電腦能即時處理到什麼程度</span>
+      <span class="perf-banner-actions">
+        <button class="btn sm primary" id="perfBannerGo" type="button">立即檢測</button>
+        <button class="btn sm ghost" id="perfBannerDismiss" type="button">不再提示</button>
+      </span>
+    </div>
+
+    <section class="perf" id="perfPanel" aria-label="電腦效能檢測" hidden>
+      <div class="perf-head">
+        <h2>電腦效能檢測</h2>
+        <button class="btn icon-only ghost sm" id="perfClose" type="button" title="關閉" aria-label="關閉">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <p class="perf-intro">測量這台電腦的修復速度，看哪些解析度能即時播放。檢測期間會暫停背景處理。</p>
+      <div class="perf-ctl" id="perfCtl"></div>
+      <div class="perf-result" id="perfResult" hidden></div>
+    </section>
+
+    <section class="gpu" id="gpuPanel" aria-label="GPU 用量" hidden>
+      <div class="gpu-head">
+        <span class="gpu-name" id="gpuName">GPU</span>
+        <span class="gpu-note" id="gpuNote"></span>
+      </div>
+      <div class="gpu-stats">
+        <div class="gstat"><span class="gl">使用率</span><b id="gUtil">–</b><span class="gbar px-only" id="gUtilBar" aria-hidden="true"></span></div>
+        <div class="gstat"><span class="gl">VRAM<span class="gtot" id="gMemTot"></span></span><b id="gMem">–</b><span class="gbar px-only" id="gMemBar" aria-hidden="true"></span></div>
+        <div class="gstat" title="方塊條：30–90 °C"><span class="gl">溫度</span><b id="gTemp">–</b><span class="gbar px-only" id="gTempBar" aria-hidden="true"></span></div>
+        <div class="gstat" id="gPowerBox"><span class="gl">功耗</span><b id="gPower">–</b><span class="gbar px-only" id="gPowerBar" aria-hidden="true"></span></div>
+        <div class="gstat" title="NVENC 編碼器"><span class="gl">編碼 NVENC</span><b id="gEnc">–</b><span class="gbar px-only" id="gEncBar" aria-hidden="true"></span></div>
+        <div class="gstat" title="NVDEC 解碼器"><span class="gl">解碼 NVDEC</span><b id="gDec">–</b><span class="gbar px-only" id="gDecBar" aria-hidden="true"></span></div>
+      </div>
+      <div class="gpu-charts">
+        <figure class="gchart">
+          <figcaption>使用率與 VRAM <span class="lg"><i class="sw s1"></i>使用率</span><span class="lg"><i class="sw s2"></i>VRAM</span></figcaption>
+          <canvas id="chUtil" role="img" aria-label="GPU 使用率與 VRAM 百分比，最近 2 分鐘"></canvas>
+        </figure>
+        <figure class="gchart">
+          <figcaption>溫度與功耗 <span class="lg"><i class="sw s3"></i>溫度 °C</span><span class="lg"><i class="sw s4"></i>功耗 W</span></figcaption>
+          <canvas id="chTemp" role="img" aria-label="GPU 溫度與功耗，最近 2 分鐘"></canvas>
+        </figure>
+        <figure class="gchart">
+          <figcaption>編碼與解碼 % <span class="lg"><i class="sw s5"></i>NVENC</span><span class="lg"><i class="sw s6"></i>NVDEC</span></figcaption>
+          <canvas id="chCodec" role="img" aria-label="NVENC 編碼器與 NVDEC 解碼器使用率，最近 2 分鐘"></canvas>
+        </figure>
+      </div>
+    </section>
+
+    <section class="storage" aria-label="儲存空間">
+      <div class="storage-head">
+        <div class="storage-title">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.700 3.600 3 8 3s8-1.300 8-3V6"/><path d="M4 12v6c0 1.700 3.600 3 8 3s8-1.300 8-3v-6"/></svg>
+          <span>快取空間</span>
+        </div>
+        <div class="storage-figure"><b id="usedText">0</b><span class="sep">/</span><span id="capText">50 GB</span><span class="pct" id="usedPct"></span></div>
+        <button class="link" id="btnFolder" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          開啟快取資料夾
+        </button>
+      </div>
+      <div class="meter modern-only" id="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="meterFill"></i></div>
+      <div class="blocks px-only" id="meterBlocks" role="progressbar" aria-label="快取空間" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+    </section>
+
+    <div id="notices" class="notices" aria-live="polite"></div>
+
+    <section id="streamCard" class="stream-card" aria-label="串流中" hidden>
+      <div class="stream-head">
+        <span class="stream-tag">串流中</span>
+        <span class="stream-title" id="streamTitle"></span>
+        <span class="stream-state" id="streamState"></span>
+      </div>
+      <div class="stream-timeline">
+        <span class="stream-time" id="streamTime"></span>
+        <div class="stream-bar" id="streamBar" role="progressbar" aria-label="播放位置" aria-valuemin="0" aria-valuemax="100">
+          <i class="stream-ahead" id="streamAhead"></i><i class="stream-played" id="streamPlayed"></i>
+        </div>
+      </div>
+      <div class="stream-row" id="streamRestoreRow"><span class="stream-v" id="streamRestore"></span></div>
+      <div class="stream-row" id="streamSubRow" hidden>
+        <span class="stream-v" id="streamSub"></span><span class="stream-note" id="streamSubNote"></span>
+      </div>
+    </section>
+
+    <div class="listhead">
+      <h2>處理佇列</h2>
+      <span id="summary" class="summary"></span>
+    </div>
+
+    <div id="subtitlePending" class="pending-bar" hidden></div>
+
+    <section id="list" class="list" aria-label="處理佇列"></section>
+
+    <div id="empty" class="empty" hidden>
+      <svg viewBox="0 0 160 120" aria-hidden="true">
+        <rect x="22" y="22" width="116" height="76" rx="14" class="e-a"/>
+        <rect x="34" y="34" width="60" height="8" rx="4" class="e-b"/>
+        <rect x="34" y="50" width="92" height="6" rx="3" class="e-c"/>
+        <rect x="34" y="62" width="76" height="6" rx="3" class="e-c"/>
+        <rect x="34" y="78" width="92" height="8" rx="4" class="e-d"/>
+        <rect x="34" y="78" width="38" height="8" rx="4" class="e-e"/>
+        <circle cx="126" cy="26" r="16" class="e-f modern-only"/>
+        <rect x="110" y="10" width="32" height="32" class="e-f px-only"/>
+        <path d="M126 19v14M119 26h14" class="e-g"/>
+      </svg>
+      <h3>佇列是空的</h3>
+      <p>貼上網址或檔案路徑，按「解析」或 Enter；<br>也可以把檔案拖進這個視窗，確認設定後即可串流播放或加入佇列。</p>
+    </div>
+  </main>
+</div>
+
+<!-- settings dialog (category rail + pane) -->
+<div class="scrim" id="settingsScrim" hidden></div>
+<div class="sdlg" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" hidden>
+  <div class="sdlg-head">
+    <h2 id="drawerTitle">設定</h2>
+    <div class="sdlg-head-actions">
+      <button class="btn icon-only ghost" id="btnExpandSettings" type="button" title="放大設定視窗" aria-label="切換設定視窗大小" aria-pressed="false">
+        <svg class="expand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg>
+        <svg class="restore-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h12v12M16 8H4v12h12z"/></svg>
+      </button>
+      <button class="btn icon-only ghost" id="btnCloseSettings" type="button" title="關閉" aria-label="關閉">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="sdlg-rail" role="tablist" aria-orientation="vertical" aria-label="設定分類">
+    <button type="button" role="tab" id="stab-proc" data-cat="proc" aria-controls="spane-proc" aria-selected="true" tabindex="0"><span class="pxg px-only" data-glyph="proc" aria-hidden="true"></span><span class="cn">處理<small>PROCESS</small></span></button>
+    <button type="button" role="tab" id="stab-out" data-cat="out" aria-controls="spane-out" aria-selected="false" tabindex="-1"><span class="pxg px-only" data-glyph="out" aria-hidden="true"></span><span class="cn">輸出<small>OUTPUT</small></span></button>
+    <button type="button" role="tab" id="stab-store" data-cat="store" aria-controls="spane-store" aria-selected="false" tabindex="-1"><span class="pxg px-only" data-glyph="store" aria-hidden="true"></span><span class="cn">儲存<small>STORAGE</small></span></button>
+    <button type="button" role="tab" id="stab-gen" data-cat="gen" aria-controls="spane-gen" aria-selected="false" tabindex="-1"><span class="pxg px-only" data-glyph="gen" aria-hidden="true"></span><span class="cn">一般<small>GENERAL</small></span></button>
+    <button type="button" role="tab" id="stab-subtitles" data-cat="subtitles" aria-controls="spane-subtitles" aria-selected="false" tabindex="-1"><span class="pxg px-only" data-glyph="subtitles" aria-hidden="true"></span><span class="cn">字幕<small>SUBTITLES</small></span></button>
+  </div>
+  <div class="sdlg-pane">
+
+    <div role="tabpanel" id="spane-proc" aria-labelledby="stab-proc" data-cat="proc">
+      <div class="srow" id="engineRow" hidden>
+        <div class="l"><label for="engineSelect">修復引擎</label><p class="hint">負責偵測與修復的內核；只影響新加入的工作。</p></div>
+        <div class="c wide"><select class="model-select" id="engineSelect" data-key="engine"></select></div>
+      </div>
+      <div class="srow">
+        <div class="l"><label for="detectionModel">偵測模型</label><p class="hint">找出畫面中需要處理的區域。</p></div>
+        <div class="c wide"><select class="model-select" id="detectionModel" data-key="detection_model" aria-describedby="modelHint"></select></div>
+      </div>
+      <div class="srow">
+        <div class="l"><label for="restorationModel">修復模型</label><p class="hint">把偵測到的區域還原。</p></div>
+        <div class="c wide"><select class="model-select" id="restorationModel" data-key="restoration_model" aria-describedby="modelHint"></select></div>
+      </div>
+      <p class="snote" id="modelHint">模型設定只影響新加入的工作。既有待處理工作可按「套用目前模型」更新；更新後會重新判定處理快取。串流播放與佇列共用這裡的設定。</p>
+      <div class="srow">
+        <div class="l"><label for="clipLength">處理幀數</label><p class="hint">每段修復一次處理的最大幀數（修復時間窗）。越大畫面越連貫但越吃顯示記憶體；只影響新加入的工作與之後的串流。</p></div>
+        <div class="c"><select class="model-select" id="clipLength" data-clip="max_clip_length"></select></div>
+      </div>
+      <div class="srow">
+        <div class="l"><span class="nm" id="lblInterp">插幀</span><p class="hint">來源 ≤ 40 fps 時輸出 2 倍幀率；關閉可加快處理。</p></div>
+        <div class="c"><div class="seg" id="segInterp" role="radiogroup" aria-labelledby="lblInterp">
+          <label><input type="radio" name="interpolation" value="full"><span>每格補幀</span></label>
+          <label><input type="radio" name="interpolation" value="off"><span>關閉</span></label>
+        </div></div>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="spane-out" aria-labelledby="stab-out" data-cat="out" hidden>
+      <div class="srow">
+        <div class="l"><span class="nm" id="lblEncoder">成品編碼</span><p class="hint">HEVC 檔案較小；H.264 相容性最好。開始處理時套用，已完成的項目不受影響。</p></div>
+        <div class="c"><div class="seg" id="segEncoder" role="radiogroup" aria-labelledby="lblEncoder">
+          <label><input type="radio" name="encoder" value="hevc"><span>HEVC (H.265)</span></label>
+          <label><input type="radio" name="encoder" value="h264"><span>H.264</span></label>
+        </div></div>
+      </div>
+      <div class="srow inline">
+        <div class="l"><label for="swCompare">保存對照畫面</label><p class="hint">額外保存原始 / 修復並排對照軌，會多佔空間。</p></div>
+        <div class="c"><label class="switch"><input type="checkbox" id="swCompare" data-key="save_compare"><span></span></label></div>
+      </div>
+      <div class="sub" id="compareOpts" hidden>
+        <div class="srow">
+          <div class="l"><span class="nm" id="lblCmpOrig">原始畫面</span><p class="hint">沿用原檔：不重壓、最省空間，暫停逐幀比對時偶爾差 1–2 幀；重新壓縮：對齊最準，檔案略大。開始處理時套用，已完成的項目不受影響。</p></div>
+          <div class="c"><div class="seg" id="segCompareOriginal" role="radiogroup" aria-labelledby="lblCmpOrig">
+            <label><input type="radio" name="compare_original" value="copy" checked><span>沿用原檔</span></label>
+            <label><input type="radio" name="compare_original" value="encode"><span>重新壓縮</span></label>
+          </div></div>
+        </div>
+        <div class="srow" id="compareQualityField" hidden>
+          <div class="l"><span class="nm" id="lblCmpQ">比對軌畫質</span></div>
+          <div class="c"><div class="seg" id="segCompareQuality" role="radiogroup" aria-labelledby="lblCmpQ">
+            <label><input type="radio" name="compare_quality" value="same"><span>同主軌</span></label>
+            <label><input type="radio" name="compare_quality" value="small" checked><span>省空間</span></label>
+            <label><input type="radio" name="compare_quality" value="tiny"><span>極省</span></label>
+          </div></div>
+        </div>
+        <p class="snote">修復 1x（插幀前）畫面播放時自動產生，不佔空間。</p>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="spane-store" aria-labelledby="stab-store" data-cat="store" hidden>
+      <div class="srow">
+        <div class="l"><label for="capNum">快取上限</label><p class="hint">超過上限時，會先自動清除「已看過且未保留」的成品（最久沒用的先刪）；仍不夠就暫停佇列。拉桿支援 5–500 GB 快速微調，亦可直接於數字框輸入更高上限（最高 5000 GB）。</p></div>
+        <div class="c"><span class="field-val"><input type="number" id="capNum" min="1" max="5000" step="1" inputmode="numeric"> GB</span></div>
+        <div class="full"><input type="range" id="capRange" min="5" max="500" step="5" aria-label="快取上限（GB）"></div>
+      </div>
+      <div class="srow">
+        <div class="l"><span class="nm">快取資料夾</span><p class="hint">在檔案總管中開啟處理後成品的存放位置。</p></div>
+        <div class="c"><button class="btn sm" id="btnFolder2" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          開啟資料夾
+        </button></div>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="spane-gen" aria-labelledby="stab-gen" data-cat="gen" hidden>
+      <div class="srow inline">
+        <div class="l"><label for="swThumbs">顯示縮圖</label><p class="hint">在佇列卡片上顯示影片縮圖與區塊進度；關閉則顯示一般進度條。</p></div>
+        <div class="c"><label class="switch"><input type="checkbox" id="swThumbs" data-key="show_thumbnails" checked><span></span></label></div>
+      </div>
+      <div class="srow inline">
+        <div class="l"><label for="swThumbCover">縮圖列第一格顯示封面</label><p class="hint">有封面時放在縮圖列第一格；關閉則顯示影片縮圖。</p></div>
+        <div class="c"><label class="switch"><input type="checkbox" id="swThumbCover" data-key="show_thumbnail_cover" checked><span></span></label></div>
+      </div>
+      <div class="srow inline">
+        <div class="l"><label for="swSleep">處理中防止睡眠</label><p class="hint">背景處理期間不讓電腦自動進入睡眠。</p></div>
+        <div class="c"><label class="switch"><input type="checkbox" id="swSleep" data-key="prevent_sleep"><span></span></label></div>
+      </div>
+      <div class="srow inline">
+        <div class="l"><label for="swShutdown">全部完成後關機</label><p class="hint">佇列全部處理完畢後自動關閉電腦。</p></div>
+        <div class="c"><label class="switch"><input type="checkbox" id="swShutdown" data-key="shutdown_when_done"><span></span></label></div>
+      </div>
+      <div class="srow" id="resetupRow" hidden>
+        <div class="l"><span class="nm">顯示卡版本</span><p class="hint" id="resetupInfo">讀取中…</p></div>
+        <div class="c"><button class="btn sm" id="btnResetup" type="button" disabled>重新偵測／切換版本</button></div>
+      </div>
+      <div class="srow" id="updateRow" hidden>
+        <div class="l"><span class="nm">程式版本</span><p class="hint" id="updateVersion"></p>
+          <p class="hint" id="updateResult" role="status" aria-live="polite" hidden></p>
+          <pre class="hint" id="updateNotes" hidden style="white-space:pre-wrap;max-height:9em;overflow:auto;margin:4px 0 0"></pre></div>
+        <div class="c"><button class="btn sm" id="btnCheckUpdate" type="button">檢查更新</button>
+          <button class="btn sm" id="btnOpenRelease" type="button" hidden>前往下載</button></div>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="spane-subtitles" aria-labelledby="stab-subtitles" data-cat="subtitles" hidden>
+      <p class="subtitle-env" id="subtitleEnvironment" role="status" aria-live="polite"></p>
+      <section id="subtitleMainView" aria-labelledby="subtitleMainTitle">
+        <h3 class="subtitle-view-title" id="subtitleMainTitle">主字幕設定</h3>
+        <label class="subtitle-mode-label" for="subtitleMode">字幕方案</label>
+        <select id="subtitleMode"><option value="cloud">雲端（推薦 · Groq 極速）</option><option value="local">本機（Whisper ＋ Sakura）</option><option value="custom">自訂模式</option></select>
+        <p id="subtitleProfileStatus" class="snote" role="status" aria-live="polite"></p>
+        <p id="subtitleComboFallback" class="snote" role="status" aria-live="polite" hidden></p>
+        <p id="subtitleComboFallbackGo" class="subtitle-row-actions" hidden><button class="btn sm primary" type="button" data-go-model-dl>前往下載</button></p>
+        <p class="subtitle-cloud-disclosure" id="subtitleCloudNotice">☁️ 雲端模式會透過 HTTPS 加密傳送音訊與字幕文字至雲端服務（服務可能依使用量計費）。</p>
+        <section id="subtitleCloudHome" aria-label="雲端服務設定">
+          <div class="subtitle-pool-heading"><h4>Groq 連線</h4><button id="subtitleGroqAdd" class="btn sm" type="button">＋ 新增</button></div>
+          <p class="snote">依清單順序使用，限額時自動換下一組。金鑰加密保存。</p>
+          <div id="subtitleGroqPool" class="subtitle-pool-list"></div>
+          <label class="subtitle-pool-auto"><input id="subtitleGroqAuto" type="checkbox">限額時自動切換</label>
+          <form id="subtitleGroqForm" class="subtitle-service-form subtitle-pool-editor" hidden>
+            <h5 id="subtitleGroqEditorTitle">新增連線</h5>
+            <select id="subtitleGroqConnection" aria-label="編輯中的 Groq 連線" hidden></select>
+            <div class="subtitle-pool-fields">
+              <label>名稱<input id="subtitleGroqName" maxlength="40" required placeholder="例如：備用金鑰"></label>
+              <label>使用順序<select id="subtitleGroqPriority"></select></label>
+            </div>
+            <label for="subtitleGroqKey">API 金鑰（留空保留原金鑰）</label><div class="subtitle-key-wrap"><input id="subtitleGroqKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="請貼上 Groq API 金鑰（gsk_...）"><button id="subtitleGroqShowKey" class="btn sm ghost" type="button">顯示</button></div>
+            <input id="subtitleGroqAudio" type="hidden" value="">
+            <div class="subtitle-pool-actions"><button id="subtitleGroqDelete" class="btn sm ghost danger" type="button">刪除連線</button><span></span><button id="subtitleGroqCancel" class="btn sm" type="button">取消</button><button id="subtitleGroqSave" class="btn sm primary" type="submit">驗證並儲存</button></div>
+          </form>
+          <div id="subtitleGroqStatus" class="subtitle-service-status" role="status" aria-live="polite"></div>
+          <p id="subtitleCloudPlan" class="snote"></p>
+          <details id="usageSection" class="usage-sec">
+            <summary><span class="usage-title">雲端用量</span><span id="usageChip" class="usage-chip" role="status" hidden></span></summary>
+            <div id="usageBody" class="usage-body">
+              <p id="usageEmpty" class="usage-muted">尚無用量資料</p>
+              <div id="usageModels" class="usage-models" hidden></div>
+              <p id="usageAsrNote" class="snote" hidden>ASR 音訊上限為預設值，尚未驗證</p>
+              <div id="usageChartWrap" hidden>
+                <div class="usage-controls">
+                  <button id="usageRange24" class="btn sm" type="button" aria-pressed="true">24 小時</button>
+                  <button id="usageRange7d" class="btn sm" type="button" aria-pressed="false">7 天</button>
+                  <label class="usage-toggle"><input id="usageShowAudio" type="checkbox" checked>顯示音訊秒數</label>
+                </div>
+                <div id="usageChart" class="usage-chart" role="group" aria-label="用量圖表"></div>
+                <table id="usageTable" class="sr-only" aria-label="每小時用量資料"></table>
+              </div>
+            </div>
+          </details>
+        </section>
+        <section id="subtitleLocalHome" aria-label="本機推薦方案" hidden>
+          <h4>本機推薦配置</h4><p class="snote">Whisper 日文辨識 ＋ Sakura-GalTransl 繁中翻譯，字幕在這台電腦上產生。</p>
+          <p id="subtitleLocalStatus" class="subtitle-service-status" role="status"></p>
+          <div class="subtitle-row-actions">
+            <button id="subtitleLocalRecommend" class="btn" type="button">使用推薦配置</button>
+          </div>
+          <div class="subtitle-modeldl" id="subtitleModelDl">
+            <h5 class="mdl-title">本機字幕模型</h5>
+            <p id="subtitleModelDlStatus" class="mdl-status" role="status" aria-live="polite">正在讀取模型狀態…</p>
+            <div id="subtitleModelDlProgress" class="subtitle-modeldl-progress" hidden>
+              <div class="bar" style="--c:var(--b)"><i id="subtitleModelDlBar"></i></div>
+              <p id="subtitleModelDlProgressText" class="snote" role="status" aria-live="polite"></p>
+            </div>
+            <p id="subtitleModelDlError" class="subtitle-modeldl-error" role="alert" hidden></p>
+            <div class="subtitle-row-actions">
+              <button id="subtitleModelDlStart" class="btn primary" type="button">下載本機字幕模型</button>
+              <button id="subtitleModelDlCancel" class="btn sm" type="button" hidden>取消</button>
+              <button id="subtitleModelDlManage" class="btn sm link" type="button" aria-expanded="false" aria-controls="subtitleModelDlDetails">管理已下載的模型</button>
+            </div>
+            <div id="subtitleModelDlDetails" hidden>
+              <div id="subtitleModelDlGroups"></div>
+              <p id="subtitleModelDlSummary" class="subtitle-service-status" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+        </section>
+        <div id="subtitleCustomEditor" hidden>
+          <p class="snote">自訂模式使用完整模型編輯器；混合本機與雲端時仍須開啟外連。</p>
+          <div class="srow">
+            <div class="l"><label for="subtitleAsr">語音辨識模型（ASR）</label><p class="hint">雙模型融合會整合兩個模型的辨識結果；單模型可減少處理時間。</p></div>
+            <div class="c wide"><select id="subtitleAsr" aria-describedby="subtitleAsrHint"></select><span class="sr-only" id="subtitleAsrHint">選擇雙模型融合或單一辨識模型</span></div>
+          </div>
+          <div class="srow">
+            <div class="l"><label for="subtitleTranslation">主要翻譯模型</label><p class="hint">將辨識結果翻譯為繁體中文。</p></div>
+            <div class="c wide"><select id="subtitleTranslation"></select></div>
+          </div>
+          <p id="subtitleCustomFlowSummary" class="snote" role="status" aria-live="polite"></p>
+        </div>
+
+        <fieldset class="subtitle-options">
+          <legend>播放與處理體驗</legend>
+          <div class="srow" id="subtitleCloudStrategyRow">
+            <div class="l">
+              <label for="subtitleCloudStrategy">雲端字幕處理策略</label>
+              <p class="hint" id="subtitleCloudStrategyHint">隨播放與影像修復進度處理；跳轉至未處理段落時優先生成字幕。</p>
+            </div>
+            <div class="c">
+              <select id="subtitleCloudStrategy">
+                <option value="smart_horizon" selected>智慧按需緩衝（預設，推薦）</option>
+                <option value="full_preload">全片預先處理</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="subtitle-nav-actions">
+          <button class="btn sm" id="subtitleOpenAdvanced" type="button">進階字幕設定</button>
+          <button class="btn sm" id="subtitleOpenModels" type="button">管理模型與連線</button>
+          <button class="btn sm ghost" id="subtitleOpenFallbackFromCloud" type="button" hidden>設定備援模型…</button>
+        </div>
+      </section>
+
+      <section id="subtitleAdvancedView" aria-labelledby="subtitleAdvancedTitle" hidden>
+        <div class="subtitle-subview-head">
+          <button class="btn sm ghost" id="subtitleBackFromAdvanced" type="button">← 返回字幕設定</button>
+          <h3 class="subtitle-view-title" id="subtitleAdvancedTitle">進階字幕設定</h3>
+        </div>
+
+        <fieldset class="subtitle-options" id="subtitleWhisperPolicySection">
+          <legend>雲端語音辨識策略</legend>
+          <div class="srow" id="subtitleWhisperPolicyRow">
+            <div class="l">
+              <label for="subtitleWhisperPolicy">Groq Whisper 模型策略</label>
+              <p class="hint">自動策略允許同服務 v3／turbo 依負載或限流自動切換備援；固定模型則鎖定單一模型，不自動切換。</p>
+            </div>
+            <div class="c">
+              <select id="subtitleWhisperPolicy">
+                <option value="auto">自動切換策略（Large v3 Turbo ＋ Large v3 備援）</option>
+                <option value="fixed">固定模型（鎖定 Large v3 Turbo）</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <section class="subtitle-fallback" id="subtitleFallbackSection" aria-labelledby="subtitleFallbackTitle">
+          <div class="subtitle-fallback-head">
+            <div>
+              <h3 id="subtitleFallbackTitle">模型備援設定</h3>
+              <p class="hint">當主要辨識或翻譯服務遭遇限流（429）或暫時性故障時，自動依序使用備援模型處理，避免字幕中斷。純本機模式加入雲端備援時會自動轉為自訂模式。</p>
+            </div>
+          </div>
+          <fieldset class="subtitle-options">
+            <legend>辨識備援清單（ASR Fallback）</legend>
+            <div id="subtitleFallbackAsrList" class="subtitle-fallback-list" role="list"></div>
+            <div class="subtitle-fallback-add-row">
+              <select id="subtitleFallbackAsrSelect" aria-label="選擇辨識備援模型"></select>
+              <button class="btn sm" id="subtitleFallbackAsrAdd" type="button">＋ 加入辨識備援</button>
+            </div>
+          </fieldset>
+          <fieldset class="subtitle-options">
+            <legend>主要翻譯備援清單（Translation Fallback）</legend>
+            <div id="subtitleFallbackTranslationList" class="subtitle-fallback-list" role="list"></div>
+            <div class="subtitle-fallback-add-row">
+              <select id="subtitleFallbackTranslationSelect" aria-label="選擇翻譯備援模型"></select>
+              <button class="btn sm" id="subtitleFallbackTranslationAdd" type="button">＋ 加入翻譯備援</button>
+            </div>
+          </fieldset>
+          <details class="subtitle-options">
+            <summary>進階重試與冷卻設定</summary>
+            <div class="srow">
+              <div class="l"><label for="subtitleFallbackMaxAttempts">最大嘗試次數</label><p class="hint">單一區塊在放棄前嘗試所有候選的最大累計次數（1~12）。</p></div>
+              <div class="c"><input id="subtitleFallbackMaxAttempts" type="number" min="1" max="12" step="1" value="4"></div>
+            </div>
+            <div class="srow">
+              <div class="l"><label for="subtitleFallbackRetries">單一候選重試次數</label><p class="hint">同一模型遇到暫時性錯誤時立即重試的次數（0~3）。</p></div>
+              <div class="c"><input id="subtitleFallbackRetries" type="number" min="0" max="3" step="1" value="1"></div>
+            </div>
+            <div class="srow">
+              <div class="l"><label for="subtitleFallbackCooldown">冷卻時間（秒）</label><p class="hint">遇到限流或故障後暫停該服務的時間，冷卻後單一探測恢復主服務（1~3600 秒）。</p></div>
+              <div class="c"><input id="subtitleFallbackCooldown" type="number" min="1" max="3600" step="1" value="60"></div>
+            </div>
+          </details>
+        </section>
+
+        <fieldset class="subtitle-options">
+          <legend>字幕輸出與內容</legend>
+          <p class="snote">每次都會產生精簡中文與完整中文兩條字幕軌，也可另外輸出日文辨識原文。</p>
+          <label class="subtitle-option-row" for="subtitleJapanese"><span><b>日文辨識字幕軌</b><small>另外輸出辨識後的日文原文。</small></span><input type="checkbox" id="subtitleJapanese"></label>
+        </fieldset>
+
+        <section class="subtitle-comparison" aria-labelledby="subtitleComparisonTitle">
+          <div class="subtitle-comparison-head">
+            <div><h3 id="subtitleComparisonTitle">多字幕比較</h3><p class="hint">額外產生下列字幕軌，主字幕仍使用上方設定，預設播放不會被取代。</p></div>
+            <label class="switch" aria-label="啟用多字幕比較"><input type="checkbox" id="subtitleComparisonEnabled"><span></span></label>
+          </div>
+          <div id="subtitleComparisonEditor" hidden>
+            <div id="subtitleComparisonRows" class="subtitle-comparison-rows" aria-live="polite"></div>
+            <button class="btn sm" id="subtitleAddComparison" type="button">＋ 新增字幕軌</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="subtitleModelsView" aria-labelledby="subtitleModelsTitle" hidden>
+        <div class="subtitle-subview-head">
+          <button class="btn sm ghost" id="subtitleBackFromModels" type="button">← 返回字幕設定</button>
+          <h3 class="subtitle-view-title" id="subtitleModelsTitle">字幕模型與服務管理</h3>
+        </div>
+        <div class="subtitle-model-tabs" role="tablist" aria-label="字幕模型類型">
+          <button type="button" role="tab" id="subtitleModelTabAsr" aria-controls="subtitleModelList" aria-selected="true" tabindex="0" data-kind="asr">ASR 辨識</button>
+          <button type="button" role="tab" id="subtitleModelTabTranslation" aria-controls="subtitleModelList" aria-selected="false" tabindex="-1" data-kind="translation">翻譯</button>
+          <button type="button" role="tab" id="subtitleModelTabConnections" aria-controls="subtitleConnectionListPanel" aria-selected="false" tabindex="-1" data-kind="connections">服務連線</button>
+        </div>
+        <div id="subtitleModelList" class="subtitle-model-list" role="tabpanel" aria-labelledby="subtitleModelTabAsr"></div>
+        <div id="subtitleConnectionListPanel" role="tabpanel" aria-labelledby="subtitleModelTabConnections" hidden>
+          <div id="subtitleConnectionList" class="subtitle-connection-list"></div>
+          <p class="snote">服務連線集中管理 API 端點與金鑰。更新金鑰採原地覆蓋（輪替），不重複新增模型；被已排程工作或目前字幕設定引用的連線無法刪除。</p>
+        </div>
+
+        <form id="subtitleModelForm" class="subtitle-model-form" novalidate>
+          <h4>新增模型</h4>
+          <p class="snote">先執行真實推論測試，成功後才會以作業系統加密儲存金鑰並加入清單。雲端 ASR 若未指定音訊檔，會使用內建 1 秒語音樣本測試。</p>
+          <div class="subtitle-form-grid">
+            <label>執行方式<select id="subtitleModelProvider" name="provider"><option value="local">本機</option><option value="openai-compatible">OpenAI 相容服務（雲端）</option></select></label>
+            <label class="subtitle-cloud-field" hidden>常用雲端服務預設<select id="subtitleModelPreset" name="preset">
+              <option value="groq">Groq（推薦 · Whisper / Qwen / GPT-OSS）</option>
+              <option value="azure">Azure Translator（雲端翻譯 · 免費方案以官方頁面為準）</option>
+              <option value="gemini">Google Gemini（OpenAI 相容 · 翻譯推薦）</option>
+              <option value="openrouter">OpenRouter（多模型路由）</option>
+              <option value="ollama">Ollama（本機 · 僅翻譯 · 不需金鑰）</option>
+              <option value="lmstudio">LM Studio（本機 · 僅翻譯 · 不需金鑰）</option>
+              <option value="custom">自訂 OpenAI 相容端點</option>
+            </select></label>
+            <label>顯示名稱<input id="subtitleModelLabel" name="label" type="text" maxlength="80" autocomplete="off" required></label>
+            <label>模型方案<select id="subtitleModelRecipe" name="recipe" required></select></label>
+            <label class="subtitle-local-field"><span id="subtitleModelPathLabel">本機模型資料夾</span><input id="subtitleModelPath" name="model_path" type="text" autocomplete="off" spellcheck="false" placeholder="輸入模型資料夾路徑"></label>
+            <label class="subtitle-cloud-field" hidden>API 基底網址<input id="subtitleModelBaseUrl" name="base_url" type="url" autocomplete="url" placeholder="https://api.example.com/v1"></label>
+            <label class="subtitle-cloud-field" hidden>遠端模型名稱<input id="subtitleModelRemote" name="remote_model" type="text" list="subtitleModelRemoteList" autocomplete="off" placeholder="選擇或輸入遠端模型 ID"><datalist id="subtitleModelRemoteList"></datalist></label>
+            <label class="subtitle-cloud-field" hidden>API 金鑰（僅寫入不回顯，以系統加密保存）
+              <div class="subtitle-key-wrap">
+                <input id="subtitleModelApiKey" name="api_key" type="password" autocomplete="new-password" spellcheck="false" placeholder="貼上 API Key（留空則讀取系統環境變數；本機 Ollama / LM Studio 可留空）">
+                <button class="btn sm ghost" id="subtitleModelKeyToggle" type="button" aria-label="切換顯示金鑰">顯示</button>
+              </div>
+            </label>
+            <label class="subtitle-azure-field subtitle-cloud-field" id="subtitleModelAzureRegionWrap" hidden>服務區域（Region）
+              <input id="subtitleModelAzureRegion" name="azure_region" type="text" list="subtitleModelAzureRegionList" autocomplete="off" spellcheck="false" placeholder="選擇或自行輸入區域，例如：eastasia">
+              <datalist id="subtitleModelAzureRegionList">
+                <option value="eastasia">東亞 (East Asia / 香港)</option>
+                <option value="southeastasia">東南亞 (Southeast Asia / 新加坡)</option>
+                <option value="japaneast">日本東部 (Japan East / 東京)</option>
+                <option value="japanwest">日本西部 (Japan West / 大阪)</option>
+                <option value="koreacentral">韓國中部 (Korea Central / 首爾)</option>
+                <option value="global">全域 (Global)</option>
+                <option value="eastus">美國東部 (East US)</option>
+                <option value="westus">美國西部 (West US)</option>
+                <option value="westeurope">西歐 (West Europe / 荷蘭)</option>
+              </datalist>
+            </label>
+            <label class="subtitle-audio-field" hidden><span id="subtitleModelAudioPathLabel">ASR 測試音訊路徑</span><input id="subtitleModelAudioPath" name="test_audio_path" type="text" autocomplete="off" spellcheck="false" placeholder="輸入本機語音樣本路徑"></label>
+            <label class="subtitle-audio-field" hidden>選取音訊檔（若支援）<input id="subtitleModelAudio" name="test_audio" type="file" accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg"></label>
+          </div>
+          <label class="subtitle-option-row subtitle-pair-row subtitle-cloud-field" id="subtitleModelPairGroqWrap" for="subtitleModelPairGroq" hidden>
+            <span><b>同時用此金鑰啟用 Groq 語音辨識與翻譯（免重複輸入）</b><small>一次測試並登錄 Groq Whisper ASR 與 Groq Qwen 3.8 27B 翻譯模型。</small></span>
+            <input type="checkbox" id="subtitleModelPairGroq" checked>
+          </label>
+          <details class="subtitle-cloud-disclosure subtitle-cloud-field" hidden>
+            <summary>雲端資料與費用</summary>
+            <p>雲端辨識可能會傳送測試音訊；雲端翻譯可能會傳送字幕文字。服務供應商可能依使用量收費。</p>
+          </details>
+          <div class="subtitle-form-actions"><button class="btn primary" id="subtitleModelTestAdd" type="submit">測試並新增</button><span id="subtitleModelFormStatus" role="status" aria-live="polite"></span></div>
+        </form>
+      </section>
+    </div>
+
+  </div>
+  <div class="sdlg-foot"><span class="saved">變更會立即儲存</span></div>
+</div>
+
+<dialog id="subtitlePlayDialog" class="modal-card subtitle-play-dialog" aria-labelledby="subtitlePlayTitle" aria-describedby="subtitlePlayProgress">
+  <h3 id="subtitlePlayTitle">字幕處理中</h3>
+  <p id="subtitlePlayProgress" aria-live="polite"></p>
+  <div class="modal-actions">
+    <button class="btn" type="button" id="subtitlePlaySkip">先看，不要字幕</button>
+    <button class="btn primary" type="button" id="subtitlePlayWait">等字幕完成再播</button>
+  </div>
+</dialog>
+
+<!-- confirm dialog -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="alertdialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalBody">
+    <h3 id="modalTitle"></h3>
+    <p id="modalBody"></p>
+    <div class="modal-choices" id="modalChoices" role="radiogroup" aria-label="匯出版本" hidden></div>
+    <div class="modal-actions">
+      <button class="btn" type="button" id="modalCancel">取消</button>
+      <button class="btn primary" type="button" id="modalOk">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- per-item settings and reprocess dialog -->
+<div class="modal reprocess-modal" id="reprocessModal" hidden>
+  <form class="modal-card reprocess-card" id="reprocessForm" role="dialog" aria-modal="true" aria-labelledby="reprocessTitle" aria-describedby="reprocessSource reprocessStateNote" novalidate>
+    <h3 id="reprocessTitle">重新處理</h3>
+    <p class="reprocess-source" id="reprocessSource" role="status" aria-live="polite">正在讀取來源與目前設定…</p>
+    <p class="reprocess-lossy" id="reprocessLossy" hidden>目前可用的來源可能已經過有損壓縮；重新處理會以此來源建立新版本。</p>
+    <p class="reprocess-state-note" id="reprocessStateNote"></p>
+    <p class="reprocess-error" id="reprocessError" role="alert" hidden></p>
+
+    <fieldset class="reprocess-fields" id="reprocessFields" disabled>
+      <div class="rp-row">
+        <label for="reprocess_detection_model">偵測模型</label>
+        <select class="model-select" id="reprocess_detection_model"></select>
+      </div>
+      <div class="rp-row">
+        <label for="reprocess_restoration_model">修復模型</label>
+        <select class="model-select" id="reprocess_restoration_model"></select>
+      </div>
+      <div class="rp-row">
+        <span class="rp-label" id="reprocessEncoderLabel">成品編碼</span>
+        <div class="seg rp-seg" role="radiogroup" aria-labelledby="reprocessEncoderLabel">
+          <label><input type="radio" name="reprocess_encoder" value="hevc"><span>HEVC (H.265)</span></label>
+          <label><input type="radio" name="reprocess_encoder" value="h264"><span>H.264</span></label>
+        </div>
+      </div>
+      <div class="rp-row">
+        <span class="rp-label" id="reprocessInterpolationLabel">插幀</span>
+        <div class="seg rp-seg" role="radiogroup" aria-labelledby="reprocessInterpolationLabel">
+          <label><input type="radio" name="reprocess_interpolation" value="full"><span>每格補幀</span></label>
+          <label><input type="radio" name="reprocess_interpolation" value="off"><span>關閉</span></label>
+        </div>
+      </div>
+      <div class="rp-row">
+        <label for="reprocess_quality">來源解析度</label>
+        <select id="reprocess_quality" aria-describedby="reprocessQualityNotice reprocessQualityLocalHint">
+          <option value="keep">保留目前畫質</option>
+        </select>
+        <p class="rp-help" id="reprocessQualityNotice" hidden>變更網址來源畫質時會自動重新下載來源。</p>
+        <p class="rp-help" id="reprocessQualityLocalHint" hidden>本機檔案會保留來源解析度，目前無法在重新處理時調整。</p>
+      </div>
+      <div class="rp-row rp-check-row">
+        <label class="rp-check" for="reprocess_save_compare"><input type="checkbox" id="reprocess_save_compare"><span>保存對照畫面</span></label>
+      </div>
+      <div class="reprocess-compare" id="reprocess_compare_settings" hidden>
+        <div class="rp-row">
+          <span class="rp-label" id="reprocessCompareOriginalLabel">原始畫面</span>
+          <div class="seg rp-seg" role="radiogroup" aria-labelledby="reprocessCompareOriginalLabel">
+            <label><input type="radio" name="reprocess_compare_original" value="copy"><span>沿用原檔</span></label>
+            <label><input type="radio" name="reprocess_compare_original" value="encode"><span>重新壓縮</span></label>
+          </div>
+        </div>
+        <div class="rp-row" id="reprocess_compare_quality_row" hidden>
+          <span class="rp-label" id="reprocessCompareQualityLabel">比對軌畫質</span>
+          <div class="seg rp-seg" role="radiogroup" aria-labelledby="reprocessCompareQualityLabel">
+            <label><input type="radio" name="reprocess_compare_quality" value="same"><span>同主軌</span></label>
+            <label><input type="radio" name="reprocess_compare_quality" value="small"><span>省空間</span></label>
+            <label><input type="radio" name="reprocess_compare_quality" value="tiny"><span>極省</span></label>
+          </div>
+        </div>
+      </div>
+      <div class="rp-row" id="reprocessRedownloadRow" hidden>
+        <label class="rp-check" for="reprocess_redownload"><input type="checkbox" id="reprocess_redownload"><span>重新下載網址來源</span></label>
+      </div>
+      <div class="rp-row rp-path-row" id="reprocessSourcePathRow" hidden>
+        <label for="reprocess_source_path">重新指定本機來源</label>
+        <input id="reprocess_source_path" type="text" autocomplete="off" spellcheck="false">
+        <p class="rp-help">原始檔案無法使用時，輸入目前可用的完整路徑。</p>
+      </div>
+      <div class="rp-row" id="reprocessStopRow" hidden>
+        <label class="rp-check" for="reprocess_stop_current"><input type="checkbox" id="reprocess_stop_current"><span>來源準備好後暫停目前工作</span></label>
+        <p class="rp-help">未勾選時，原工作會繼續；新設定會用於重新處理。</p>
+      </div>
+    </fieldset>
+    <div class="modal-actions reprocess-actions">
+      <button class="btn" type="button" id="reprocessCancel">取消</button>
+      <button class="btn primary" type="submit" id="reprocessSubmit" disabled>讀取中…</button>
+    </div>
+  </form>
+</div>
+
+<!-- drop overlay -->
+<div class="dropzone" id="dropzone" hidden>
+  <div class="dropzone-card">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+    <b>放開以解析</b>
+    <span>支援檔案、網址與 cURL 文字</span>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="branding.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "entries": [
+    {
+      "text": "ご視聴ありがとうございました",
+      "match": "contains"
+    },
+    {
+      "text": "チャンネル登録",
+      "match": "contains"
+    },
+    {
+      "text": "お疲れ様でした",
+      "match": "exact",
+      "non_speech_only": true
+    }
+  ],
+  "credit_patterns": [
+    "字幕(?:組|组|制作|翻譯|翻译)",
+    "字幕[:：]\\s*[^。！？\\n]{1,24}",
+    "翻訳協力|翻譯校對|翻译校对|時間軸|时间轴",
+    "^\\s*by\\s+[A-Za-z][A-Za-z ]{0,14}[.．。]"
+  ]
+}

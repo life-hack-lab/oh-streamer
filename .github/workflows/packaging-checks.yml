@@ -1,0 +1,108 @@
+name: Windows packaging checks
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  offline-contracts:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      # Only the standard library is needed (no project venv, no network, no GPU).
+      - name: Installer inputs, staging, Inno script contract, update check
+        run: >-
+          python -m unittest
+          tests.test_installer_inputs
+          tests.test_build_installer
+          tests.test_build_installer_inno
+          tests.test_app_running
+          tests.test_update_check
+          tests.test_install_layout_paths
+          tests.test_runtime_layout
+          tests.test_lada_runtime_patches
+          tests.test_build_lada_wheel
+          tests.test_webview_watchdog
+          tests.test_progress_text
+          tests.test_package_imports
+      - name: Check bundle resources and entry points
+        run: >-
+          python -m unittest
+          tests.test_frozen_runtime
+          tests.test_packaging_entry
+          tests.test_packaged_resources
+      - name: Check build provenance
+        run: python -m unittest tests.test_build_provenance
+      - name: Install Inno Setup 6.7.3
+        shell: pwsh
+        run: |
+          $candidates = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe")
+          if (-not ($candidates | Where-Object { Test-Path $_ })) {
+            choco install innosetup --version=6.7.3 -y --no-progress
+          }
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found after install" }
+          "OH_STREAMER_ISCC=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      # Compiles oh_streamer.iss against a tiny fake stage with ISCC /O- (no installer written, no 1 GB downloads).
+      - name: Compile the Inno script (parse check only)
+        run: python packaging/build_installer.py check-iss
+
+  repo-hygiene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Check doc links
+        run: python scripts/check_doc_links.py
+      - name: Check for committed secrets
+        run: python scripts/check_no_secrets.py
+      # The private term list lives in the OH_STREAMER_BLOCKLIST secret; when it is empty
+      # (forks, PRs without secret access) only the built-in generic terms are scanned.
+      - name: Blocklist scan
+        env:
+          BLOCKLIST_SECRET: ${{ secrets.OH_STREAMER_BLOCKLIST }}
+        run: |
+          if [ -n "$BLOCKLIST_SECRET" ]; then
+            printf '%s\n' "$BLOCKLIST_SECRET" > "$RUNNER_TEMP/blocklist.txt"
+            export OH_STREAMER_BLOCKLIST_FILE="$RUNNER_TEMP/blocklist.txt"
+          else
+            echo "OH_STREAMER_BLOCKLIST secret not set; running built-in terms only"
+          fi
+          python scripts/check_blocklist.py
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Non-blocking for now: advisories are triaged, they do not fail the build.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # osv-scanner reads uv.lock natively.
+      - name: OSV scan of uv.lock
+        uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+        with:
+          scan-args: |-
+            --lockfile=uv.lock

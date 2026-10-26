@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>首次設定</title>
+<link rel="stylesheet" href="setup.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- 標頭：和佇列視窗一樣的像素 logo（文字來自 window.BRAND.logo）＋小字標，右邊是「首次設定」 -->
+  <header class="top">
+    <div class="wrap top-row">
+      <div class="px-brand" id="pxBrand" hidden>
+        <div class="px-brand-row">
+          <canvas class="px-logo" id="pxLogo" width="120" height="40" aria-hidden="true"></canvas>
+          <span class="px-sub" id="pxSub" aria-hidden="true"></span>
+        </div>
+        <div class="px-rgb" id="rgbBar" aria-hidden="true"></div>
+      </div>
+      <div class="brand-text">
+        <h1 id="appTitle">首次設定</h1>
+        <p class="sub" id="appSub">選擇並安裝所需的執行環境</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="content" id="content">
+    <div class="wrap">
+
+    <!-- 只在瀏覽器預覽（mock_api.js）時顯示 -->
+    <div class="preview-banner" id="previewBanner" hidden></div>
+
+    <!-- 一次性的訊息（API 失敗、已取消、無法關閉視窗…） -->
+    <div class="notices" id="notices" role="status" aria-live="polite"></div>
+
+    <!-- 1. 偵測中 -->
+    <section class="card" id="vDetecting" aria-busy="true">
+      <p class="busy-line"><span class="blink" aria-hidden="true"></span><span>正在檢查這台電腦的顯示卡…</span></p>
+    </section>
+
+    <!-- 偵測失敗 -->
+    <section class="card failed" id="vDetectError" hidden>
+      <h2>無法完成偵測</h2>
+      <p class="lead" id="detectErrorLead"></p>
+      <details class="more" id="detectErrorDetails">
+        <summary>技術細節</summary>
+        <div class="more-body">
+          <pre class="msg" id="detectErrorMsg"></pre>
+        </div>
+      </details>
+    </section>
+
+    <!-- 2~4. 偵測結果與安裝選項 -->
+    <div id="vReady" hidden>
+      <section class="card">
+        <h2>這台電腦的顯示卡</h2>
+        <ul class="gpu-list" id="gpuList"></ul>
+        <div class="notice" id="recStatus"></div>
+        <ul class="warn-list" id="recWarnings"></ul>
+        <div class="no-offer" id="noOffer" hidden>
+          <p class="no-offer-title">暫不支援這台電腦的顯示卡</p>
+          <div id="supportedBox">
+            <p>目前支援的顯示卡：</p>
+            <ul class="supported-list" id="supportedCards"></ul>
+          </div>
+          <p>可以按下方的「匯出診斷包」，把產生的檔案傳給開發者，協助日後加入支援。</p>
+        </div>
+        <div class="notice warn" id="webview2Warn" hidden>
+          <span>未偵測到 Microsoft Edge WebView2 執行階段，視窗畫面可能無法正常顯示，建議先安裝後再繼續。</span>
+        </div>
+      </section>
+
+      <section class="card" id="cInstall" hidden>
+        <h2>安裝</h2>
+        <div class="field">
+          <label for="optSelect">版本</label>
+          <select id="optSelect"></select>
+        </div>
+        <p class="size-info" id="sizeInfo"></p>
+        <div class="notice danger" id="diskWarn" hidden>
+          <span id="diskWarnText"></span>
+        </div>
+        <!-- 空間放不下新舊兩份環境，但先刪舊的就夠 -->
+        <div class="notice warn choice" id="lowSpaceBox" hidden>
+          <p id="lowSpaceText"></p>
+          <button type="button" class="btn" data-act="installDeleteOld" id="btnDeleteOld">先刪除舊環境再安裝</button>
+        </div>
+        <!-- 程式還開著：不能換掉它正在用的環境 -->
+        <div class="notice warn choice" id="inUseBox" hidden>
+          <p id="inUseText"></p>
+          <button type="button" class="btn" data-act="retryInUse">重試</button>
+        </div>
+        <p class="env-line" id="envLine" hidden></p>
+        <p class="hint" id="optHint" hidden></p>
+      </section>
+
+      <details class="more" id="readyDetails">
+        <summary>詳細資訊</summary>
+        <div class="more-body">
+          <dl class="kv" id="detailList"></dl>
+        </div>
+      </details>
+    </div>
+
+    <!-- 5. 安裝中 -->
+    <section class="card" id="vInstalling" hidden aria-busy="true">
+      <h2 id="instTitle">正在安裝</h2>
+      <div class="prog-head">
+        <span class="prog-label" id="progLabel"></span>
+        <span class="prog-pct" id="progPct"></span>
+      </div>
+      <!-- 方塊進度條：完成的步驟填滿；量得到下載量時依實際百分比填，量不到時進行中的步驟閃動 -->
+      <div class="blocks" id="progBlocks" role="progressbar" aria-label="安裝進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+      <p class="dl-line" id="progDl" aria-live="polite" hidden></p>
+      <ol class="steps" id="steps">
+        <li data-phase="base"><i class="dot"></i><span class="name">準備程式元件</span><em class="st"></em></li>
+        <li data-phase="gpu"><i class="dot"></i><span class="name">下載顯示卡加速元件（約 3 GB）</span><em class="st"></em></li>
+        <li data-phase="selfcheck"><i class="dot"></i><span class="name">測試顯示卡</span><em class="st"></em></li>
+      </ol>
+      <p class="progress-msg" id="instHint"></p>
+      <p class="poll-warn" id="pollWarn" hidden></p>
+      <details class="more" id="logDetails">
+        <summary>詳細資訊</summary>
+        <div class="more-body">
+          <p class="backend-msg" id="instMessage"></p>
+          <p class="log-title">安裝紀錄（最後 <span id="logCount">0</span> 行）</p>
+          <pre class="log-pre" id="logPre"></pre>
+        </div>
+      </details>
+    </section>
+
+    <!-- 6. 完成 -->
+    <section class="card done" id="vDone" hidden>
+      <h2>安裝完成，顯示卡測試通過</h2>
+      <p class="lead">一切就緒，按「開始使用」就可以開啟主程式。</p>
+      <p class="device" id="doneDevice" hidden>使用的顯示卡：<span id="doneDeviceName"></span></p>
+      <p class="launch-msg" id="launchMsg" hidden></p>
+    </section>
+
+    <!-- 7. 失敗 -->
+    <section class="card failed" id="vFailed" hidden>
+      <h2>安裝沒有完成</h2>
+      <p class="lead" id="failLead"></p>
+      <p class="next" id="failNext"></p>
+      <details class="more" id="failDetails">
+        <summary>技術細節</summary>
+        <div class="more-body">
+          <pre class="msg" id="failMsg"></pre>
+          <div id="failLogBox" hidden>
+            <p class="log-title">安裝紀錄（最後 <span id="failLogCount">0</span> 行）</p>
+            <pre class="log-pre" id="failLogPre"></pre>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- 9. 匯出診斷包的結果（偵測失敗、可安裝／不可安裝、安裝完成、安裝失敗時顯示） -->
+    <div class="diag-box" id="diagBox" hidden role="status" aria-live="polite"></div>
+
+    </div>
+  </main>
+
+  <!-- 固定在視窗底部的按鈕列：每個畫面一組，由 setView() 切換 -->
+  <footer class="foot">
+    <div class="wrap">
+      <div class="actions" data-for="detectError" hidden>
+        <button type="button" class="btn primary" data-act="redetect">重新偵測</button>
+        <button type="button" class="btn" data-act="diag">匯出診斷包</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" data-act="close">關閉</button>
+      </div>
+      <div class="actions" data-for="ready" hidden>
+        <button type="button" class="btn primary" data-act="install" id="btnInstall" hidden>安裝</button>
+        <button type="button" class="btn" data-act="diag" id="btnDiagReady">匯出診斷包</button>
+        <button type="button" class="btn ghost" data-act="redetect">重新偵測</button>
+        <span class="grow"></span>
+        <button type="button" class="btn ghost" data-act="close">關閉</button>
+      </div>
+      <div class="actions" data-for="installing" hidden>
+        <button type="button" class="btn danger" data-act="cancel" id="btnCancel">取消安裝</button>
+        <span class="cancel-note" id="cancelNote" hidden>正在取消，請稍候…</span>
+        <span class="grow"></span>
+        <span class="foot-note">安裝期間請不要關閉這個視窗</span>
+      </div>
+      <div class="actions" data-for="done" hidden>
+        <button type="button" class="btn primary" data-act="launch" id="btnLaunch">開始使用</button>
+        <button type="button" class="btn" data-act="diag">匯出診斷包</button>
+      </div>
+      <div class="actions" data-for="failed" hidden>
+        <button type="button" class="btn primary" data-act="retry">重試</button>
+        <button type="button" class="btn" data-act="diag">匯出診斷包</button>
+        <button type="button" class="btn ghost" data-act="reselect">回到上一步</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- 品牌名稱只來自 queue_ui/branding.js（window.BRAND）；setup.js 在找不到時會再試其他路徑 -->
+<script src="../queue_ui/branding.js"></script>
+<!-- 沒有 window.pywebview（瀏覽器預覽）時才會建立假的 API -->
+<script src="mock_api.js"></script>
+<script src="setup.js"></script>
+</body>
+</html>

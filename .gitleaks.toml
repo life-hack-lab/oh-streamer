@@ -1,0 +1,17 @@
+# Gitleaks config: the default rules, plus an allowlist for known false positives.
+# Each entry matches one specific line (cache keys, record ids, fake test keys); keep it narrow.
+# No ^ or $ anchors: in git mode gitleaks matches diff lines, which start with "+".
+[extend]
+useDefault = true
+
+[allowlist]
+description = "known false positives"
+regexTarget = "line"
+regexes = [
+  '''make_job_key\(cache_key, "utterance-energy-v1-15s", use_vad\)''',
+  '''LEGACY_KEY_(FULL|MIN) = "[0-9a-f]{40}"''',
+  '''O\.parse\("curl -b cookies\.txt https://e\.example/a\.mp4"\)''',
+  '''CloudTranslationClient\(spec, "key", prompt_family="general-llm"\)''',
+  '''KEY = "sk-SECRET-KEY-123"''',
+  '''\("asr", "api\.groq\.com", "whisper-large-v3", 200, 300\.0, 3\)''',
+]

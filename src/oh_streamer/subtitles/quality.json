@@ -1,0 +1,7 @@
+{
+  "version": "f7-v1",
+  "vad_threshold": 0.3,
+  "gap_fill": {"enabled": true, "min_seconds": 2.0, "max_seconds": 10.0, "min_rms": 0.003},
+  "f7": {"avg_logprob_min": -0.7, "no_speech_prob_max": 0.1, "compression_ratio_max": 1.2, "agreement_min": 0.8, "repeat_count": 4, "repeat_max_unit": 12},
+  "onomatopoeia_pattern": "(?:ちゅ|ぢゅ|じゅ|ぷ|ん|あ|ぁ|は|ふ|う|ー|っ)+"
+}

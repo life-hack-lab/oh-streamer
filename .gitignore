@@ -1,0 +1,45 @@
+__pycache__/
+*.pyc
+logs/
+# retired settings file name, never commit
+lada_settings.json
+oh_settings.json
+airplay_credentials.json
+*.log
+.venv/
+.venv-intel/
+.venv-windows-release*/
+resolvers.json
+.port_baseline/
+.test-tmp/
+*.egg-info/
+artifacts/
+build-macos/
+dist-macos/
+build-windows/
+dist-windows/
+release-assets/
+.env
+.env.*
+!.env.example
+clips/
+tools/nvencc/
+
+# per-stage scratch dirs of the subtitle cloud-first work (isolated appdata, temp files)
+.s[0-9]-work/
+.s[0-9]-work*/
+build-installer/
+
+# local tooling and scratch
+.claude/
+.tmp*
+.test-tmp-coverage
+*.bak*
+.pytest_cache/
+.ruff_cache/
+
+# model weights never belong in the repo
+*.pt
+*.pth
+*.pkl
+*.gguf

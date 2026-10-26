@@ -1,0 +1,333 @@
+{
+  "format": "oh-streamer-installer-inputs-v1",
+  "install_root_note": "dest is relative to the install root (<root>/app, <root>/python, <root>/uv.exe)",
+  "archives": [
+    {
+      "id": "python-build-standalone",
+      "filename": "cpython-3.13.17+20261021-x86_64-pc-windows-msvc-install_only.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.13.17%2B20261021-x86_64-pc-windows-msvc-install_only.tar.gz",
+      "sha256": "e10b46d9b03a3a494297f336770f55f86474d683061137b1cf595e12e47bcef5",
+      "size": 47544162,
+      "note": "python-build-standalone release 20261021, CPython 3.13.17; SHA-256 cross-checked against the release's SHA256SUMS and the GitHub asset digest. Licenses are inside the tree (python/LICENSE.txt)."
+    },
+    {
+      "id": "uv-0.12.23",
+      "filename": "uv-0.12.23-x86_64-pc-windows-msvc.zip",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-pc-windows-msvc.zip",
+      "sha256": "75d05de6762778c31ee183398de7dd15093fad0ed90b1f236d8205ea5ec00c90",
+      "size": 18043715,
+      "note": "official uv release 0.12.23; SHA-256 equals the GitHub asset digest. Only uv.exe is installed."
+    },
+    {
+      "id": "ffmpeg-9.0.2-full_build",
+      "filename": "ffmpeg-9.0.2-full_build.zip",
+      "url": "https://github.com/GyanD/codexffmpeg/releases/download/9.0.2/ffmpeg-9.0.2-full_build.zip",
+      "sha256": "759d0a9831c436a0eb331ad36f236c06cb04aaa0005da46571f0e9d3d9206f6b",
+      "size": 257736868,
+      "note": "gyan.dev full_build 9.0.2 (GitHub mirror GyanD/codexffmpeg); ffmpeg.exe and ffprobe.exe inside hash-match the old dependencies.lock.json."
+    },
+    {
+      "id": "mpv-x86_64-20261021",
+      "filename": "mpv-x86_64-20261021-git-e471496c56.7z",
+      "format": "7z",
+      "url": "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20261021/mpv-x86_64-20261021-git-e471496c56.7z",
+      "sha256": "4a355f3e89c83fabc730d33fb4e759dfec747806ed2287b61a90d1681b83e8d3",
+      "size": 34025957,
+      "note": "shinchiro/mpv-winbuild-cmake release 20261021, plain x86_64 build (NOT x86_64-v3, which needs AVX2); mpv v0.41.0-1227-ge471496c5. SHA-256 equals the GitHub asset digest. Only mpv.exe is installed (d3dcompiler_43.dll in the archive is a legacy fallback; Windows 10+ ships d3dcompiler_47)."
+    },
+    {
+      "id": "vc-redist-x64-14.44.35211",
+      "filename": "vc_redist.x64.exe",
+      "format": "burn",
+      "url": "https://download.visualstudio.microsoft.com/download/pr/990c720a-46ce-4dc7-87b9-c2eb615d34b9/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
+      "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+      "size": 25635768,
+      "note": "Microsoft Visual C++ Redistributable 14.44.35211.0 (Authenticode: valid, Microsoft Corporation), final download URL of https://aka.ms/vs/17/release/vc_redist.x64.exe (content-addressed path). Never executed: DLLs are read from its embedded cabinets with expand.exe."
+    }
+  ],
+  "files": [
+    {
+      "id": "model-lada_mosaic_detection_model_v4_accurate.pt",
+      "dest": "app/model_weights/lada_mosaic_detection_model_v4_accurate.pt",
+      "sha256": "c244d7e49d8f88e264b8dc15f91fb21f5908ad8fb6f300b7bc88462d0801bc1f",
+      "size": 45136630,
+      "role": "model-weight",
+      "source": {
+        "type": "url",
+        "url": "https://huggingface.co/ladaapp/lada/resolve/bcf461d46d9a98981fc64b815df5178f42215cdf/lada_mosaic_detection_model_v4_accurate.pt"
+      },
+      "license": "AGPL-3.0 (huggingface.co/ladaapp/lada model card); see the .license file next to it"
+    },
+    {
+      "id": "license-lada_mosaic_detection_model_v4_accurate.pt",
+      "dest": "app/model_weights/lada_mosaic_detection_model_v4_accurate.pt.license",
+      "sha256": "d89c227a1439062fd75a9952074158c1a9050191fb0c2576f4729da4c70ba8b3",
+      "size": 71,
+      "role": "model-license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/ladaapp/lada/20cb34a20a83c72c87a991d2c949032c70085b16/model_weights/lada_mosaic_detection_model_v4_accurate.pt.license"
+      },
+      "license": "license text for the model file"
+    },
+    {
+      "id": "model-lada_mosaic_detection_model_v4_fast.pt",
+      "dest": "app/model_weights/lada_mosaic_detection_model_v4_fast.pt",
+      "sha256": "9a6b660d1d3e3797d39515e08b0e72fcc59815f38279faa7a4ab374ab2c1e3b4",
+      "size": 5981796,
+      "role": "model-weight",
+      "source": {
+        "type": "url",
+        "url": "https://huggingface.co/ladaapp/lada/resolve/bcf461d46d9a98981fc64b815df5178f42215cdf/lada_mosaic_detection_model_v4_fast.pt"
+      },
+      "license": "AGPL-3.0 (huggingface.co/ladaapp/lada model card); see the .license file next to it"
+    },
+    {
+      "id": "license-lada_mosaic_detection_model_v4_fast.pt",
+      "dest": "app/model_weights/lada_mosaic_detection_model_v4_fast.pt.license",
+      "sha256": "d89c227a1439062fd75a9952074158c1a9050191fb0c2576f4729da4c70ba8b3",
+      "size": 71,
+      "role": "model-license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/ladaapp/lada/20cb34a20a83c72c87a991d2c949032c70085b16/model_weights/lada_mosaic_detection_model_v4_fast.pt.license"
+      },
+      "license": "license text for the model file"
+    },
+    {
+      "id": "model-lada_mosaic_restoration_model_generic_v1.2.pth",
+      "dest": "app/model_weights/lada_mosaic_restoration_model_generic_v1.2.pth",
+      "sha256": "d404152576ce64fb5b2f315c03062709dac4f5f8548934866cd01c823c8104ee",
+      "size": 78441770,
+      "role": "model-weight",
+      "source": {
+        "type": "url",
+        "url": "https://huggingface.co/ladaapp/lada/resolve/bcf461d46d9a98981fc64b815df5178f42215cdf/lada_mosaic_restoration_model_generic_v1.2.pth"
+      },
+      "license": "AGPL-3.0 (huggingface.co/ladaapp/lada model card); see the .license file next to it"
+    },
+    {
+      "id": "license-lada_mosaic_restoration_model_generic_v1.2.pth",
+      "dest": "app/model_weights/lada_mosaic_restoration_model_generic_v1.2.pth.license",
+      "sha256": "d89c227a1439062fd75a9952074158c1a9050191fb0c2576f4729da4c70ba8b3",
+      "size": 71,
+      "role": "model-license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/ladaapp/lada/20cb34a20a83c72c87a991d2c949032c70085b16/model_weights/lada_mosaic_restoration_model_generic_v1.2.pth.license"
+      },
+      "license": "license text for the model file"
+    },
+    {
+      "id": "rife-flownet-v4.6",
+      "dest": "app/third_party/rife/weights/flownet_v4.6.pkl",
+      "sha256": "008646e761f0e67cb77f0c6c44cfe3c3e5a05d9d9465311b9681ca650ce030db",
+      "size": 21273159,
+      "role": "model-weight",
+      "source": {
+        "type": "url",
+        "url": "https://github.com/HolyWu/vs-rife/releases/download/model/flownet_v4.6.pkl"
+      },
+      "license": "HolyWu/vs-rife (MIT); weights from the project's 'model' release"
+    },
+    {
+      "id": "ffmpeg",
+      "dest": "app/tools/ffmpeg.exe",
+      "sha256": "589e50b766d251afdf181dd664d40bd94407e200b019989fd7468c7d118a28d0",
+      "size": 227823104,
+      "role": "ffmpeg",
+      "source": {
+        "type": "archive",
+        "archive": "ffmpeg-9.0.2-full_build",
+        "member": "ffmpeg-9.0.2-full_build/bin/ffmpeg.exe"
+      },
+      "license": "GPL v3 (gyan.dev full_build)"
+    },
+    {
+      "id": "ffprobe",
+      "dest": "app/tools/ffprobe.exe",
+      "sha256": "02264dfa4f56baaa31e443ece8aa16d397f6b008200e7fd184d22b9009e75fd3",
+      "size": 227621376,
+      "role": "ffprobe",
+      "source": {
+        "type": "archive",
+        "archive": "ffmpeg-9.0.2-full_build",
+        "member": "ffmpeg-9.0.2-full_build/bin/ffprobe.exe"
+      },
+      "license": "GPL v3 (gyan.dev full_build)"
+    },
+    {
+      "id": "ffmpeg-license",
+      "dest": "app/tools/licenses/ffmpeg-LICENSE.txt",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "size": 35147,
+      "role": "license",
+      "source": {
+        "type": "archive",
+        "archive": "ffmpeg-9.0.2-full_build",
+        "member": "ffmpeg-9.0.2-full_build/LICENSE"
+      },
+      "license": "GPL v3 text shipped in the gyan.dev archive"
+    },
+    {
+      "id": "mpv",
+      "dest": "app/tools/mpv/mpv.exe",
+      "sha256": "8c2e4d24eb961723cc5e2f1f4401982836e82c96e0e0a944c0576090fc48993f",
+      "size": 121112576,
+      "role": "mpv",
+      "source": {
+        "type": "archive",
+        "archive": "mpv-x86_64-20261021",
+        "member": "mpv.exe"
+      },
+      "license": "GPL v2+ (shinchiro mpv-winbuild-cmake x86_64 build, v0.41.0-1227-ge471496c5, built 2026-10-21); license texts in app/tools/licenses/mpv-*"
+    },
+    {
+      "id": "mpv-license-copyright",
+      "dest": "app/tools/licenses/mpv-Copyright.txt",
+      "sha256": "bfe9ee4cceabcb8ecbfadf208d04156f73d801e6a57369a5606bb8341e204a23",
+      "size": 4096,
+      "role": "license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/mpv-player/mpv/e471496c56f0f49c133bd88b50aed62b845f1909/Copyright"
+      },
+      "license": "mpv upstream Copyright at commit e471496c56 (the 7z archive carries no license file)"
+    },
+    {
+      "id": "mpv-license-license-gpl",
+      "dest": "app/tools/licenses/mpv-LICENSE.GPL.txt",
+      "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+      "size": 17984,
+      "role": "license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/mpv-player/mpv/e471496c56f0f49c133bd88b50aed62b845f1909/LICENSE.GPL"
+      },
+      "license": "mpv upstream LICENSE.GPL at commit e471496c56 (the 7z archive carries no license file)"
+    },
+    {
+      "id": "mpv-license-license-lgpl",
+      "dest": "app/tools/licenses/mpv-LICENSE.LGPL.txt",
+      "sha256": "72b672113d642cbb8ef5dcc76938db801983c56e50b1400ab930f1a64d6dc8d9",
+      "size": 26410,
+      "role": "license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/mpv-player/mpv/e471496c56f0f49c133bd88b50aed62b845f1909/LICENSE.LGPL"
+      },
+      "license": "mpv upstream LICENSE.LGPL at commit e471496c56 (the 7z archive carries no license file)"
+    },
+    {
+      "id": "uv",
+      "dest": "uv.exe",
+      "sha256": "70742ae9bd9f64f984fd69126662cfda5c03558bcb40075b2263833e4075f744",
+      "size": 40175408,
+      "role": "uv",
+      "source": {
+        "type": "archive",
+        "archive": "uv-0.12.23",
+        "member": "uv.exe"
+      },
+      "license": "MIT OR Apache-2.0 (astral-sh/uv 0.12.23)"
+    },
+    {
+      "id": "vcrt-msvcp140",
+      "dest": "python/msvcp140.dll",
+      "sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9",
+      "size": 557728,
+      "role": "vc-runtime",
+      "source": {
+        "type": "archive",
+        "archive": "vc-redist-x64-14.44.35211",
+        "member": "a12/msvcp140.dll_amd64"
+      },
+      "license": "Microsoft Visual C++ Redistributable 14.44.35211.0 (app-local redistribution, REDIST list file, unmodified); placed next to python.exe, after the python tree is copied"
+    },
+    {
+      "id": "vcrt-msvcp140_1",
+      "dest": "python/msvcp140_1.dll",
+      "sha256": "bfad5aef4c63a669e3c140655cdfdf395b6c979b400a447bd5dcb65ed8826c3d",
+      "size": 35952,
+      "role": "vc-runtime",
+      "source": {
+        "type": "archive",
+        "archive": "vc-redist-x64-14.44.35211",
+        "member": "a12/msvcp140_1.dll_amd64"
+      },
+      "license": "Microsoft Visual C++ Redistributable 14.44.35211.0 (app-local redistribution, REDIST list file, unmodified); placed next to python.exe, after the python tree is copied"
+    },
+    {
+      "id": "vcrt-vcomp140",
+      "dest": "python/vcomp140.dll",
+      "sha256": "55aba23cdcd6484fbb06f4155b8ca75adfce7a881f10afd0c49457165e677164",
+      "size": 193152,
+      "role": "vc-runtime",
+      "source": {
+        "type": "archive",
+        "archive": "vc-redist-x64-14.44.35211",
+        "member": "a12/vcomp140.dll_amd64"
+      },
+      "license": "Microsoft Visual C++ Redistributable 14.44.35211.0 (app-local redistribution, REDIST list file, unmodified); placed next to python.exe, after the python tree is copied"
+    },
+    {
+      "id": "webview2-bootstrapper",
+      "dest": "redist/MicrosoftEdgeWebview2Setup.exe",
+      "sha256": "f414de01c4680f0bb0694d1ea7803c6968f3a81bf6bad01b89bfc65dce14c2a2",
+      "size": 1876736,
+      "role": "webview2-bootstrapper",
+      "source": {
+        "type": "url",
+        "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/ed55121c-0243-4978-b7e7-56505b5b96ff/MicrosoftEdgeWebview2Setup.exe"
+      },
+      "license": "Microsoft Edge WebView2 Evergreen Bootstrapper 1.3.299.15 (Authenticode: valid, Microsoft Corporation), final download URL of https://go.microsoft.com/fwlink/p/?LinkId=2124703. Not installed into the app folder: the installer embeds it with Flags: dontcopy and runs it from a temp folder only when the WebView2 Runtime is missing."
+    },
+    {
+      "id": "uv-license-mit",
+      "dest": "licenses/uv-LICENSE-MIT.txt",
+      "sha256": "860e3d7a86b84e6a7012c7a635fc64df475cebc6cce34dfeb73a5982ec58176c",
+      "size": 1077,
+      "role": "license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/astral-sh/uv/0.12.23/LICENSE-MIT"
+      },
+      "license": "uv 0.12.23 LICENSE-MIT (the release zip carries no license file)"
+    },
+    {
+      "id": "uv-license-apache",
+      "dest": "licenses/uv-LICENSE-APACHE.txt",
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "size": 11357,
+      "role": "license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/astral-sh/uv/0.12.23/LICENSE-APACHE"
+      },
+      "license": "uv 0.12.23 LICENSE-APACHE (the release zip carries no license file)"
+    },
+    {
+      "id": "rife-weights-license",
+      "dest": "app/third_party/rife/weights/LICENSE-Practical-RIFE.txt",
+      "sha256": "7932fb49341512b959b1744a6d9cbb39e5a1ec89da438a34d0454d5d8df9fecd",
+      "size": 1062,
+      "role": "license",
+      "source": {
+        "type": "url",
+        "url": "https://raw.githubusercontent.com/hzwer/Practical-RIFE/bbfd2ea90910789a860ea3e2b32a240cd577b75e/LICENSE"
+      },
+      "license": "flownet_v4.6.pkl is the RIFE 4.6 model trained by hzwer (Practical-RIFE, MIT); HolyWu's vs-rife release only re-hosts it"
+    }
+  ],
+  "trees": [
+    {
+      "id": "python",
+      "dest": "python",
+      "source": {
+        "archive": "python-build-standalone",
+        "strip": "python"
+      },
+      "note": "embedded interpreter; integrity = archive SHA-256"
+    }
+  ]
+}

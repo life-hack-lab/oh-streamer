@@ -1,0 +1,11 @@
+[
+  {
+    "match": "*",
+    "builtin": "browser",
+    "command": [
+      "{python}",
+      "-m",
+      "oh_streamer.sources.resolvers.resolve_browser"
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+# Install into the existing ../lada/.venv after following lada/docs/macOS_install.md.
+# PyTorch and Lada's upstream requirements are intentionally managed by Lada/uv.
+psutil
+yt-dlp
+pywebview
+pystray
+Pillow
+pyobjc-framework-Cocoa; sys_platform == "darwin"
+nvidia-ml-py; sys_platform == "win32"
+keyring; sys_platform != "win32"
+playwright==1.63.0
+# Optional features: install pyatv for casting.
+

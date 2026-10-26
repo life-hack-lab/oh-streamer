@@ -1,0 +1,6 @@
+[
+  {
+    "match": "example.com/videos/",
+    "command": ["python", "resolvers/my_resolver.py"]
+  }
+]

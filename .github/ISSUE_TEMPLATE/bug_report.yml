@@ -1,0 +1,55 @@
+name: 問題回報 / Bug report
+description: 回報錯誤或異常行為 / Report a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **貼上任何內容前請先遮蔽：本機路徑、網址、影片標題與檔名。**
+        **Redact local paths, URLs, video titles and file names before posting anything.**
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      description: 設定畫面或安裝檔檔名 / Shown in settings or the installer file name
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: 作業系統 / OS
+      placeholder: Windows 11
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: 顯示卡與驅動 / GPU and driver
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟 / Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期行為 / Expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 實際行為 / Actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日誌 / Logs
+      description: |
+        **貼上前請遮蔽路徑、網址、影片標題（含檔名與使用者名稱）。**
+        **Redact paths, URLs and video titles (including file names and your user name) before pasting.**
+      render: text

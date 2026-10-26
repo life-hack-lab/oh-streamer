@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全性問題 / Security vulnerability
+    url: https://github.com/life-hack-lab/oh-streamer/security/advisories/new
+    about: 請使用私密回報，不要開公開 issue。 / Please report privately, not in a public issue.
