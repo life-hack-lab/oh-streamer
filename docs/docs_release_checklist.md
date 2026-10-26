@@ -35,7 +35,7 @@ python packaging/build_installer.py installer --out <輸出資料夾>
 
 ## 5. 發佈到 GitHub Release
 
-- [ ] 建立 Release（預覽版勾選 pre-release），附上安裝檔。
+- [ ] 建立正式 Release，不要勾 pre-release，附上安裝檔。GitHub 的最新版查詢（`releases/latest`）不會回傳 pre-release，app 的「檢查更新」也會略過 pre-release，勾了使用者就收不到更新。預覽版在標題註明，例如「Oh Streamer 0.1.0（預覽版 Preview）」。
 - [ ] 附上所含 ffmpeg 與 mpv 對應版本的原始碼（或對應原始碼的取得連結與授權文字），符合 GPL/LGPL 義務。
 - [ ] Release notes 包含：變更摘要、安裝檔 SHA-256、需求（Windows 10/11、NVIDIA 驅動 570 以上）、已知限制。
 - [ ] Release notes 註明：安裝檔未簽章，SmartScreen 會警告，請點「其他資訊 → 仍要執行」；可用 SHA-256 核對下載。
